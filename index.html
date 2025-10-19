@@ -88,6 +88,9 @@
             INFLUENCER: "Social Media Influencer",
             PROFESSIONAL: "Marketing Director"
         };
+        
+        // Define the local API proxy endpoint
+        const API_PROXY_URL = '/api/generate-bio'; // This calls the file created in Step 1
 
         const generateButton = document.getElementById('generate-button');
         const loadingSpinner = document.getElementById('loading-spinner');
@@ -98,10 +101,6 @@
         const goalsInput = document.getElementById('goals');
         const copyMessage = document.getElementById('copy-message');
 
-        const apiKey = ""
-        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-
-        // Utility to display temporary messages instead of alert()
         function showMessage(text, isError = false) {
             const box = document.getElementById('message-box');
             box.textContent = text;
@@ -115,19 +114,14 @@
             }, 3000);
         }
 
-        // Exponential backoff retry logic
         async function fetchWithRetry(url, options, maxRetries = 5) {
             for (let i = 0; i < maxRetries; i++) {
                 try {
                     const response = await fetch(url, options);
-                    if (response.status !== 429) return response; // Not a rate limit error, proceed
-                    
-                    // Handle rate limit (429)
-                    const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
-                    // console.warn(`Rate limit hit. Retrying in ${delay / 1000}s...`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
+                    // No rate limiting logic needed here, as the serverless function handles the direct API call.
+                    return response; 
                 } catch (error) {
-                    if (i === maxRetries - 1) throw error; // Throw if last attempt failed
+                    if (i === maxRetries - 1) throw error;
                     const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
                     await new Promise(resolve => setTimeout(resolve, delay));
                 }
@@ -136,34 +130,29 @@
         }
 
 
-        async function generateContent(userQuery, systemPrompt) {
-            const payload = {
-                contents: [{ parts: [{ text: userQuery }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-            };
-
-            const response = await fetchWithRetry(API_URL, {
+        async function generateContent(niche, tone, goals) {
+            // Send user inputs to the secure serverless function
+            const response = await fetchWithRetry(API_PROXY_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({ niche, tone, goals }) // Sending structured data
             });
 
             if (!response.ok) {
-                throw new Error(`API request failed with status: ${response.status}`);
+                const errorJson = await response.json();
+                throw new Error(errorJson.error || `Server responded with status: ${response.status}`);
             }
 
             const result = await response.json();
-            const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
-            if (!text) {
-                throw new Error("Could not extract text from API response.");
+            
+            if (!result.text) {
+                throw new Error("Proxy received empty response from generator.");
             }
             
-            return text;
+            return result.text;
         }
 
         function renderResults(rawText) {
-            // Assume the model returns bios separated by numbered lists or newlines
             const bios = rawText.split(/\n\s*\d+\.\s*/).filter(b => b.trim() !== '').map(b => b.trim().replace(/^\*\s*/, ''));
 
             bioResults.innerHTML = '';
@@ -184,7 +173,6 @@
         }
 
         function copyToClipboard(text) {
-            // Using execCommand for better compatibility within certain environments
             const tempInput = document.createElement('textarea');
             tempInput.value = text;
             document.body.appendChild(tempInput);
@@ -225,16 +213,13 @@
             outputArea.classList.add('hidden');
             copyMessage.classList.add('hidden');
 
-            const systemPrompt = "You are a world-class professional copywriter specialized in creating short, compelling, and effective social media and profile bios. You must provide exactly 5 distinct options based on the user's input, formatted as a numbered list.";
-
-            const userQuery = `Generate 5 unique bios for the following user profile:\n- Niche/Role: ${niche}\n- Desired Tone: ${tone}\n- Key Goals/Keywords: ${goals || 'N/A'}\n\nEach bio must be under 160 characters and suitable for platforms like Twitter/X, Instagram, or LinkedIn.`;
-
             try {
-                const result = await generateContent(userQuery, systemPrompt);
+                // Call the new local proxy
+                const result = await generateContent(niche, tone, goals);
                 renderResults(result);
             } catch (error) {
                 // console.error("Generation error:", error);
-                showMessage("Error generating bio. Please try again later.", true);
+                showMessage(`Error: ${error.message || 'Failed to generate bio.'}`, true);
             } finally {
                 generateButton.disabled = false;
                 loadingSpinner.classList.add('hidden');
