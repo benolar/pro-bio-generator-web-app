@@ -358,25 +358,44 @@ module.exports = async (req, res) => {
         // 6. Execute AI Request and check response validity
         const result = await Promise.race([aiPromise, timeoutPromise]);
         
-        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-        const finishReason = result.candidates?.[0]?.finishReason;
-        const safetyRatings = result.candidates?.[0]?.safetyRatings; // For logging/inspection
+        const candidate = result.candidates?.[0];
+        const text = candidate?.content?.parts?.[0]?.text;
+        const finishReason = candidate?.finishReason;
+        const safetyRatings = candidate?.safetyRatings;
+        const promptFeedback = result.promptFeedback; // Check for prompt-level blocking
 
         if (!text) {
             // Log the full result for internal debugging (user won't see this)
-            console.error("AI Generation failed to return text. Finish Reason:", finishReason, "Safety:", safetyRatings); 
+            // CRITICAL: Ensure this is logged to help the user debug why generation failed
+            console.error("AI Generation failed to return text. Finish Reason:", finishReason, "Safety:", safetyRatings, "Prompt Feedback:", promptFeedback); 
 
-            let errorMessage = 'AI failed to generate content. Try a simpler niche.';
+            let errorMessage = 'AI failed to generate content. Try a simpler niche or adjust your tone/goals.';
+            let reason = finishReason;
 
-            if (finishReason && finishReason.includes('SAFETY')) {
+            // 1. Check prompt feedback (if the prompt itself was blocked)
+            if (promptFeedback && promptFeedback.blockReason) {
+                reason = promptFeedback.blockReason;
+                errorMessage = 'Your request was blocked by safety filters before generation could start. Please review your input.';
+            }
+            // 2. Check candidate finish reason (if candidate exists but failed)
+            else if (finishReason && finishReason.includes('SAFETY')) {
                  errorMessage = 'Content blocked by safety filters. Please adjust your niche or goals to be less sensitive.';
             } else if (finishReason && finishReason.includes('RECITATION')) {
                  errorMessage = 'Content blocked due to data policy (recitation). Try changing your input slightly.';
             } else if (finishReason && finishReason.includes('MAX_TOKENS')) {
                  errorMessage = 'Generation stopped early due to the max token limit. Try a shorter bio length.';
             }
+            // 3. Fallback for completely empty response (no candidate, no prompt feedback)
+            else if (!reason && !text) {
+                 reason = 'UnknownModelFailure';
+                 // Keep the generic message
+            }
 
-            return res.status(500).json({ error: errorMessage });
+            // Log the final reason for debugging
+            console.error(`Returning 422 error with final reason: ${reason || 'Unknown'}`);
+            
+            // FIX: Use 422 Unprocessable Entity for input-driven model failures
+            return res.status(422).json({ error: errorMessage, finishReason: reason });
         }
 
         // 7. Success
