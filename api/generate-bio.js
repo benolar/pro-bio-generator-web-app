@@ -339,7 +339,7 @@ module.exports = async (req, res) => {
             setTimeout(() => reject(new Error('AI Request timeout')), TIMEOUT)
         );
 
-        // --- THE FIX: Use getGenerativeModel and pass systemInstruction correctly ---
+        // --- FIX APPLIED: Use getGenerativeModel and rename 'config' to 'generationConfig' in the payload ---
         const model = ai.getGenerativeModel({ 
             model: MODEL_NAME, 
             systemInstruction: systemPrompt 
@@ -347,7 +347,8 @@ module.exports = async (req, res) => {
 
         const aiPromise = model.generateContent({
             contents: [{ parts: [{ text: userQuery }] }],
-            config: { 
+            // The API expects 'generationConfig', not 'config'
+            generationConfig: { 
                 temperature: 0.8, 
                 maxOutputTokens: Math.ceil((maxLength || 500) / 4 * 5) + 100 
             }
