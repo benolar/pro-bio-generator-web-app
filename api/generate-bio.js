@@ -1,4 +1,3 @@
-const { GoogleGenAI } = require('@google/generative-ai');
 const admin = require('firebase-admin');
 const { kv } = require('@vercel/kv'); 
 
@@ -8,7 +7,8 @@ if (!admin.apps.length) {
     try {
         const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
         if (!serviceAccountJson) {
-            console.error("FIREBASE_SERVICE_ACCOUNT environment variable is not set.");
+            console.error("FIREBASE_SERVICE_ACCOUNT environment variable is not set. Database will be unavailable.");
+            // We do not throw here, but rely on the main handler's guard check (503)
         } else {
             const serviceAccount = JSON.parse(serviceAccountJson);
             admin.initializeApp({
@@ -19,10 +19,19 @@ if (!admin.apps.length) {
         console.error("Firebase Admin SDK Initialization Error:", e.message);
     }
 }
-const db = admin.firestore();
+const db = admin.apps.length > 0 ? admin.firestore() : null; // Only get firestore if initialized
 
 
 // --- 2. CONFIGURATION & UTILITY FUNCTIONS ---
+
+// --- FIX: ROBUST GEMINI SDK IMPORT ---
+// This defensive pattern reliably gets the constructor regardless of ES/CommonJS export differences.
+const aiModule = require('@google/generative-ai');
+const GoogleGenAI = aiModule.GoogleGenAI || aiModule.default.GoogleGenAI;
+
+if (!GoogleGenAI) {
+    throw new Error('Could not resolve GoogleGenAI constructor from module. Check @google/generative-ai version.');
+}
 
 const apiKey = process.env.GEMINI_API_KEY; 
 
@@ -50,6 +59,12 @@ const RATE_LIMIT = { window: 60, max: 10 }; // 10 requests per 60 seconds (per u
 const IP_RATE_LIMIT = { window: 3600, max: 100 }; // 100 requests per 1 hour (per IP)
 
 async function checkRateLimit(userId, ip) {
+    // CRITICAL GUARD: Check if KV is initialized and ready
+    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+        console.warn('Vercel KV environment variables missing. Rate limiting disabled.');
+        return; // Skip rate limiting if KV is not configured
+    }
+
     const userKey = `rate_limit_user_${userId}`;
     const ipKey = `rate_limit_ip_${ip}`;
     
@@ -112,6 +127,11 @@ const validateBioRequest = (body) => {
 
 // Server-side verification of stored fwTransactionId and refresh isPro status
 async function verifyStoredTransactionAndRefresh(userId, appId) {
+    if (!db || !admin.apps.length) {
+         console.warn("Skipping verification: Firebase Admin SDK is not ready.");
+         return false;
+    }
+    
     try {
         const statusDocRef = db.doc(`artifacts/${appId}/users/${userId}/profile/status`);
         const statusSnap = await statusDocRef.get();
@@ -193,6 +213,10 @@ async function verifyStoredTransactionAndRefresh(userId, appId) {
  * @returns {Promise<object>} The decoded Firebase ID token payload.
  */
 async function validateSession(req) {
+    if (!db || !admin.apps.length) {
+         throw new Error('Server misconfiguration: Firebase Admin SDK is not initialized.');
+    }
+    
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         throw new Error('No session token provided');
@@ -217,7 +241,10 @@ module.exports = async (req, res) => {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
+    
+    // CRITICAL GUARD: Check all external services are configured
     if (!process.env.GEMINI_API_KEY || !admin.apps.length) {
+        console.error(`AI Key Present: ${!!process.env.GEMINI_API_KEY}, Admin SDK Ready: ${admin.apps.length > 0}`);
         return res.status(503).json({ error: 'Server configuration error: AI or Database service unavailable.' });
     }
 
