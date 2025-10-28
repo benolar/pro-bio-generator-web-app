@@ -25,12 +25,18 @@ const db = admin.apps.length > 0 ? admin.firestore() : null; // Only get firesto
 // --- 2. CONFIGURATION & UTILITY FUNCTIONS ---
 
 // --- FIX: ROBUST GEMINI SDK IMPORT ---
-// This defensive pattern reliably gets the constructor regardless of ES/CommonJS export differences.
+// This defensive pattern reliably gets the constructor by checking common export patterns (named, default, and nested default)
 const aiModule = require('@google/generative-ai');
-const GoogleGenAI = aiModule.GoogleGenAI || aiModule.default.GoogleGenAI;
 
-if (!GoogleGenAI) {
-    throw new Error('Could not resolve GoogleGenAI constructor from module. Check @google/generative-ai version.');
+// Safely access the constructor using fallbacks
+const GoogleGenAI = 
+    aiModule.GoogleGenAI ||                                  // 1. Standard named export
+    (aiModule.default && aiModule.default.GoogleGenAI) ||    // 2. Common nested ES Module default export
+    aiModule.default;                                        // 3. Class is the direct default export
+
+if (typeof GoogleGenAI !== 'function') {
+    // If we can't get the constructor after all checks, throw a specific error
+    throw new Error('FATAL: Could not resolve GoogleGenAI constructor. Dependency issue.');
 }
 
 const apiKey = process.env.GEMINI_API_KEY; 
