@@ -1,4 +1,4 @@
-const { GoogleGenAI } = require('@google/genai');
+const { GoogleGenAI } = require('@google/generative-ai');
 const admin = require('firebase-admin');
 const { kv } = require('@vercel/kv'); 
 
