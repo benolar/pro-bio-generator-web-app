@@ -23,18 +23,7 @@ const db = admin.apps.length > 0 ? admin.firestore() : null; // Only get firesto
 
 // --- 2. CONFIGURATION & UTILITY FUNCTIONS ---
 
-// --- ROBUST GEMINI SDK IMPORT ---
-const aiModule = require('@google/generative-ai');
-
-const aiClientConstructor = 
-    aiModule.GoogleGenerativeAI ||                           
-    aiModule.default;                                        
-
-if (typeof aiClientConstructor !== 'function') {
-    throw new Error('FATAL: Could not resolve GoogleGenerativeAI constructor. Dependency issue.');
-}
-const GoogleGenAI = aiClientConstructor;
-
+// The SDK is no longer strictly necessary, but we keep the key check
 const apiKey = process.env.GEMINI_API_KEY; 
 
 if (!apiKey) {
@@ -42,7 +31,6 @@ if (!apiKey) {
     throw new Error('Server misconfiguration: Gemini API Key missing.'); 
 }
 
-const ai = new GoogleGenAI(apiKey);
 const MODEL_NAME = 'gemini-2.5-flash-preview-09-2025';
 
 // Character limits
@@ -64,6 +52,40 @@ const BIO_SCHEMA = {
         }
     },
     required: ["bios"]
+};
+
+
+// Function for exponential backoff and retry mechanism
+const fetchWithRetry = async (url, options, maxRetries = 3) => {
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            const response = await fetch(url, options);
+            if (response.status === 429) { // Too Many Requests
+                throw new Error('Rate limit exceeded');
+            }
+            if (!response.ok) {
+                // Treat server errors (5xx) as potentially retryable
+                if (response.status >= 500 && i < maxRetries - 1) {
+                    throw new Error(`Retryable HTTP error! status: ${response.status}`);
+                }
+                // For final attempt or client errors (4xx), throw a detailed error
+                const errorBody = await response.json().catch(() => ({}));
+                const errorMessage = errorBody.error?.message || `HTTP error! status: ${response.status} (attempt ${i + 1}/${maxRetries})`;
+                throw new Error(errorMessage);
+            }
+            return response;
+        } catch (error) {
+            // Log retry attempts but not as errors unless it's the final failure
+            if (error.message.includes('Retryable HTTP error') || error.message.includes('NetworkError')) {
+                const delay = Math.pow(2, i) * 1000 + Math.random() * 500;
+                console.warn(`Attempt ${i + 1} failed. Retrying in ${Math.round(delay)}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            } else {
+                throw error; // Re-throw non-retryable errors immediately
+            }
+        }
+    }
+    throw new Error('All fetch attempts failed.');
 };
 
 
@@ -340,43 +362,35 @@ module.exports = async (req, res) => {
         const sGoals = sanitizeInput(goals);
         const sPlatform = sanitizeInput(platform);
 
-        // **UPDATED SYSTEM PROMPT FOR JSON OUTPUT**
-        const systemPrompt = `You are a world-class copywriter specializing in creating highly optimized, attention-grabbing bios for professional and social media platforms.
-        Your task is to generate five distinct bio options based on the user's input.
-        - Style: The tone must be strictly '${sTone}'.
-        - Platform: The bio must be optimized for a '${sPlatform}' audience, including appropriate emojis, keywords, and call-to-actions relevant to that platform.
-        - Output: You MUST return a single JSON object that conforms to the provided schema. Do not include any text outside the JSON block.
-        - Length: Each bio must be concise and strictly adhere to a maximum character count of ${maxLength} characters.`;
+        // **UPDATED SYSTEM PROMPT FOR JSON OUTPUT (Simpler)**
+        const systemInstruction = `You are a copywriter. Generate five distinct bio options optimized for '${sPlatform}' using a '${sTone}' style. The maximum length for each bio is ${maxLength} characters. Return ONLY a JSON object that matches the provided schema.`;
 
         const userQuery = `My niche/role is: ${sNiche}. My key goals/keywords are: ${sGoals}.`;
+        
+        // --- Execute AI Request using direct FETCH and Retry ---
 
-        const TIMEOUT = 30000;
-        const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('AI Request timeout')), TIMEOUT)
-        );
-
-        // --- Execute AI Request ---
-        const model = ai.getGenerativeModel({ 
-            model: MODEL_NAME, 
-            systemInstruction: systemPrompt 
-        });
-
-        const aiPromise = model.generateContent({
+        const payload = {
             contents: [{ role: 'user', parts: [{ text: userQuery }] }],
+            systemInstruction: { parts: [{ text: systemInstruction }] },
             generationConfig: { 
                 temperature: 0.8, 
                 maxOutputTokens: Math.ceil((maxLength || 500) / 4 * 5) + 100,
-                // ** CRITICAL FIX: FORCING JSON OUTPUT **
                 responseMimeType: "application/json",
                 responseSchema: BIO_SCHEMA
             }
-        });
+        };
 
-        // 6. Execute AI Request and check response validity
-        const result = await Promise.race([aiPromise, timeoutPromise]);
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`;
+        
+        const response = await fetchWithRetry(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        const result = await response.json();
         
         const candidate = result.candidates?.[0];
-        // The text part will now contain the JSON string
         const jsonText = candidate?.content?.parts?.[0]?.text;
         const finishReason = candidate?.finishReason;
         const safetyRatings = candidate?.safetyRatings;
@@ -390,12 +404,10 @@ module.exports = async (req, res) => {
                 generatedBios = parsedJson.bios;
             } catch (parseError) {
                 console.error("Failed to parse JSON response from model:", parseError.message);
-                console.error("Received raw text:", jsonText);
                 // Treat parsing error as a model generation failure
             }
         }
 
-        // Check if we have valid bios (either from text or parsed JSON)
         if (!generatedBios || generatedBios.length === 0) {
             // Log for internal debugging
             console.error("AI Generation failed to return bios array. Finish Reason:", finishReason, "Safety:", safetyRatings, "Prompt Feedback:", promptFeedback); 
@@ -432,7 +444,7 @@ module.exports = async (req, res) => {
             status = 401; // Unauthorized
         } else if (error.message.includes('Rate limit') || error.message.includes('timeout')) {
             status = 429; // Too Many Requests
-        } else if (error.message.includes('Validation failed')) {
+        } else if (error.message.includes('Validation failed') || error.message.includes('HTTP error! status: 400')) {
             status = 400; // Bad Request
         }
         
