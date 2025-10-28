@@ -26,15 +26,14 @@ const db = admin.apps.length > 0 ? admin.firestore() : null; // Only get firesto
 // --- FIX: ROBUST GEMINI SDK IMPORT (Using confirmed name from log) ---
 const aiModule = require('@google/generative-ai');
 
-// The debug log confirmed the constructor is named 'GoogleGenerativeAI'.
+// The constructor is confirmed to be 'GoogleGenerativeAI'
 const aiClientConstructor = 
-    aiModule.GoogleGenerativeAI ||                           // 1. Confirmed correct named export
-    aiModule.default;                                        // 2. Fallback to direct default export
+    aiModule.GoogleGenerativeAI ||                           // Confirmed correct named export
+    aiModule.default;                                        // Fallback to direct default export
 
 if (typeof aiClientConstructor !== 'function') {
     throw new Error('FATAL: Could not resolve GoogleGenerativeAI constructor. Dependency issue.');
 }
-// We will use GoogleGenAI for internal variable naming consistency
 const GoogleGenAI = aiClientConstructor;
 
 const apiKey = process.env.GEMINI_API_KEY; 
@@ -340,15 +339,21 @@ module.exports = async (req, res) => {
             setTimeout(() => reject(new Error('AI Request timeout')), TIMEOUT)
         );
 
-        const aiPromise = ai.models.generateContent({
-            model: MODEL_NAME,
+        // --- THE FIX: Use getGenerativeModel and pass systemInstruction correctly ---
+        const model = ai.getGenerativeModel({ 
+            model: MODEL_NAME, 
+            systemInstruction: systemPrompt 
+        });
+
+        const aiPromise = model.generateContent({
             contents: [{ parts: [{ text: userQuery }] }],
-            systemInstruction: { parts: [{ text: systemPrompt }] },
             config: { 
                 temperature: 0.8, 
                 maxOutputTokens: Math.ceil((maxLength || 500) / 4 * 5) + 100 
             }
         });
+        // --- END FIX ---
+
 
         // 6. Execute AI Request
         const result = await Promise.race([aiPromise, timeoutPromise]);
