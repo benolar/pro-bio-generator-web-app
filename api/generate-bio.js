@@ -339,16 +339,17 @@ module.exports = async (req, res) => {
             setTimeout(() => reject(new Error('AI Request timeout')), TIMEOUT)
         );
 
-        // --- FIX APPLIED: Use getGenerativeModel and rename 'config' to 'generationConfig' in the payload ---
+        // --- FIX APPLIED: Use getGenerativeModel and rename 'generationConfig' to 'config' for SDK usage ---
         const model = ai.getGenerativeModel({ 
             model: MODEL_NAME, 
             systemInstruction: systemPrompt 
         });
 
         const aiPromise = model.generateContent({
-            contents: [{ parts: [{ text: userQuery }] }],
-            // The API expects 'generationConfig', not 'config'
-            generationConfig: { 
+            // Explicitly set role for better SDK compatibility
+            contents: [{ role: 'user', parts: [{ text: userQuery }] }],
+            // The SDK expects 'config' for generation parameters
+            config: { 
                 temperature: 0.8, 
                 maxOutputTokens: Math.ceil((maxLength || 500) / 4 * 5) + 100 
             }
