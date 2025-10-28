@@ -339,7 +339,7 @@ module.exports = async (req, res) => {
             setTimeout(() => reject(new Error('AI Request timeout')), TIMEOUT)
         );
 
-        // --- FIX APPLIED: Use getGenerativeModel and rename 'generationConfig' to 'config' for SDK usage ---
+        // --- Execute AI Request ---
         const model = ai.getGenerativeModel({ 
             model: MODEL_NAME, 
             systemInstruction: systemPrompt 
@@ -354,16 +354,29 @@ module.exports = async (req, res) => {
                 maxOutputTokens: Math.ceil((maxLength || 500) / 4 * 5) + 100 
             }
         });
-        // --- END FIX ---
 
-
-        // 6. Execute AI Request
+        // 6. Execute AI Request and check response validity
         const result = await Promise.race([aiPromise, timeoutPromise]);
         
         const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        const finishReason = result.candidates?.[0]?.finishReason;
+        const safetyRatings = result.candidates?.[0]?.safetyRatings; // For logging/inspection
 
         if (!text) {
-            return res.status(500).json({ error: 'AI failed to generate content. Try a simpler niche.' });
+            // Log the full result for internal debugging (user won't see this)
+            console.error("AI Generation failed to return text. Finish Reason:", finishReason, "Safety:", safetyRatings); 
+
+            let errorMessage = 'AI failed to generate content. Try a simpler niche.';
+
+            if (finishReason && finishReason.includes('SAFETY')) {
+                 errorMessage = 'Content blocked by safety filters. Please adjust your niche or goals to be less sensitive.';
+            } else if (finishReason && finishReason.includes('RECITATION')) {
+                 errorMessage = 'Content blocked due to data policy (recitation). Try changing your input slightly.';
+            } else if (finishReason && finishReason.includes('MAX_TOKENS')) {
+                 errorMessage = 'Generation stopped early due to the max token limit. Try a shorter bio length.';
+            }
+
+            return res.status(500).json({ error: errorMessage });
         }
 
         // 7. Success
