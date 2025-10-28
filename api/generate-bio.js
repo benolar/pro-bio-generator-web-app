@@ -8,7 +8,6 @@ if (!admin.apps.length) {
         const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
         if (!serviceAccountJson) {
             console.error("FIREBASE_SERVICE_ACCOUNT environment variable is not set. Database will be unavailable.");
-            // We do not throw here, but rely on the main handler's guard check (503)
         } else {
             const serviceAccount = JSON.parse(serviceAccountJson);
             admin.initializeApp({
@@ -24,19 +23,29 @@ const db = admin.apps.length > 0 ? admin.firestore() : null; // Only get firesto
 
 // --- 2. CONFIGURATION & UTILITY FUNCTIONS ---
 
-// --- FIX: ROBUST GEMINI SDK IMPORT ---
-// This defensive pattern reliably gets the constructor by checking common export patterns (named, default, and nested default)
+// --- FIX: ROBUST GEMINI SDK IMPORT v4 ---
+// This uses the most common fallbacks. If it still fails, it logs the module keys for deep debugging.
 const aiModule = require('@google/generative-ai');
 
-// Safely access the constructor using fallbacks
+// Safely access the constructor using multiple common fallbacks
 const GoogleGenAI = 
-    aiModule.GoogleGenAI ||                                  // 1. Standard named export
-    (aiModule.default && aiModule.default.GoogleGenAI) ||    // 2. Common nested ES Module default export
-    aiModule.default;                                        // 3. Class is the direct default export
-
+    aiModule.GoogleGenAI ||                                  // Attempt 1: Standard named export
+    (aiModule.default && aiModule.default.GoogleGenAI) ||    // Attempt 2: Nested property on ES default
+    aiModule.default;                                        // Attempt 3: Class is the direct default export
+    
 if (typeof GoogleGenAI !== 'function') {
-    // If we can't get the constructor after all checks, throw a specific error
-    throw new Error('FATAL: Could not resolve GoogleGenAI constructor. Dependency issue.');
+    // CRITICAL: Log the keys of the module object for next-step debugging
+    const keys = Object.keys(aiModule);
+    console.error('Failed to find GoogleGenAI constructor. Module keys:', keys);
+    
+    // Check if a potential, untyped constructor is available (e.g., if the module exports a single class)
+    if (typeof aiModule === 'function') {
+        // If the entire required object is the constructor, use it.
+        // This is a last-resort fix for environments that incorrectly bundle.
+        GoogleGenAI = aiModule; 
+    } else {
+        throw new Error('FATAL: Could not resolve GoogleGenAI constructor. Dependency issue. Check package version.');
+    }
 }
 
 const apiKey = process.env.GEMINI_API_KEY; 
