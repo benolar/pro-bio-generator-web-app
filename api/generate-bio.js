@@ -348,8 +348,8 @@ module.exports = async (req, res) => {
         const aiPromise = model.generateContent({
             // Explicitly set role for better SDK compatibility
             contents: [{ role: 'user', parts: [{ text: userQuery }] }],
-            // The SDK expects 'config' for generation parameters
-            config: { 
+            // FIX APPLIED: Changed 'config' to 'generationConfig' to match the REST API payload requirements.
+            generationConfig: { 
                 temperature: 0.8, 
                 maxOutputTokens: Math.ceil((maxLength || 500) / 4 * 5) + 100 
             }
