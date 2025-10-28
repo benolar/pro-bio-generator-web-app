@@ -131,14 +131,31 @@
     </div>
 
     <script type="module">
-        // Firebase Global Variables (MANDATORY USE)
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // 🚨 IMPORTANT: Replace the placeholder values below with your Firebase client configuration.
+        // This public configuration is safe to include in your client-side code.
+        const FIREBASE_CLIENT_CONFIG = {
+            apiKey: "AIzaSyAAqqENNvQzrUdMFcjEJsG2iygrQWNWS0A",
+            authDomain: "pro-tools-web-app.firebaseapp.com",
+            projectId: "pro-tools-web-app",
+            storageBucket: "pro-tools-web-app.firebasestorage.app",
+            messagingSenderId: "146517824837",
+            appId: "1:146517824837:web:12d1c042f8493b1bab1a2c",
+            measurementId: "G-6LYSEGKE8V"
+        };
+
+        // Firebase Global Variables (Canvas fallbacks)
+        const canvasFirebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const isCanvasConfigValid = canvasFirebaseConfig && Object.keys(canvasFirebaseConfig).length > 0 && canvasFirebaseConfig.projectId;
+        
+        // Use Canvas config if valid, otherwise use the client config defined above.
+        const firebaseConfig = isCanvasConfigValid ? canvasFirebaseConfig : FIREBASE_CLIENT_CONFIG;
+        
+        const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId || 'default-app-id';
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, limit, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, limit, doc, getIdToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // --- Global State ---
         let app, db, auth, userId = null;
@@ -162,7 +179,7 @@
         const copyMessage = document.getElementById('copy-message');
         const historyList = document.getElementById('history-list');
         const proPitchArea = document.getElementById('pro-pitch-area');
-        const unlockProButton = document.getElementById('unlock-pro-button');
+        let unlockProButton = null; // Defined here, attached/re-attached later
 
         // --- Utility Functions ---
 
@@ -212,10 +229,11 @@
 
         // --- Firebase & State Management ---
 
-        if (Object.keys(firebaseConfig).length > 0) {
+        if (firebaseConfig.projectId && firebaseConfig.apiKey) {
             app = initializeApp(firebaseConfig);
             db = getFirestore(app);
             auth = getAuth(app);
+            document.getElementById('user-info').textContent = 'Authenticating...';
 
             // Ensure persistence is set BEFORE signing in
             (async () => {
@@ -229,6 +247,7 @@
                 } catch (error) {
                     console.error("Auth Persistence/Sign-in Error:", error);
                     showMessage("Error establishing user session.", true);
+                    isAuthReady = true; // Still mark as ready to prevent infinite block
                 }
             })();
 
@@ -240,11 +259,13 @@
                     loadHistory(); 
                     listenToProStatus(); // NEW: Start listening for Pro status
                 } else {
-                    // ...existing code...
+                    // This handles anonymous sign-in failure, which should be caught above, 
+                    // but serves as a final fail-safe.
+                    isAuthReady = true;
                 }
             });
         } else {
-            document.getElementById('user-info').textContent = 'Firebase is not configured. History will not be saved.';
+            document.getElementById('user-info').textContent = 'Firebase is not configured! Check the script block.';
             isAuthReady = true;
         }
 
@@ -307,7 +328,12 @@
                         Unlock Pro ($2.99 One-Time)
                     </button>
                 `;
-                document.getElementById('unlock-pro-button-active').addEventListener('click', handleProUnlock);
+                // Re-attach event listener
+                const newUnlockButton = document.getElementById('unlock-pro-button-active');
+                if(newUnlockButton) {
+                    newUnlockButton.addEventListener('click', handleProUnlock);
+                    unlockProButton = newUnlockButton;
+                }
             }
 
             // Update dropdowns
@@ -346,7 +372,9 @@
                 return;
             }
             
-            const button = document.getElementById('unlock-pro-button-active');
+            const button = unlockProButton || document.getElementById('unlock-pro-button-active');
+            if(!button) return;
+            
             button.disabled = true;
             button.textContent = 'Redirecting to Checkout...';
 
@@ -400,33 +428,43 @@
         // --- Generation & History Logic (Slightly modified feature gating) ---
 
         async function generateContent(niche, tone, goals, length, customLength, platform, userId) {
-    // Include userId and appId in the payload
-    const response = await fetchWithRetry(API_PROXY_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ niche, tone, goals, length, customLength, platform, userId, appId }) 
-    });
+            if(!auth || !auth.currentUser) {
+                throw new Error("Authentication failed. Please refresh and try again.");
+            }
+            
+            // Get the user's ID token for secure API call
+            const token = await auth.currentUser.getIdToken();
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage;
-        try {
-            const errorJson = JSON.parse(errorText);
-            errorMessage = errorJson.error || `Server responded with status: ${response.status}`;
-        } catch {
-            errorMessage = `Server responded with status: ${response.status} and message: ${errorText.substring(0, 100)}`;
+            const response = await fetchWithRetry(API_PROXY_URL, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    // Pass the secure ID token
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ niche, tone, goals, length, customLength, platform, userId, appId }) 
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                let errorMessage;
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    errorMessage = errorJson.error || `Server responded with status: ${response.status}`;
+                } catch {
+                    errorMessage = `Server responded with status: ${response.status} and message: ${errorText.substring(0, 100)}`;
+                }
+                throw new Error(errorMessage);
+            }
+
+            const result = await response.json();
+            
+            if (!result.text) {
+                throw new Error("Proxy received empty response from generator.");
+            }
+            
+            return result.text;
         }
-        throw new Error(errorMessage);
-    }
-
-    const result = await response.json();
-    
-    if (!result.text) {
-        throw new Error("Proxy received empty response from generator.");
-    }
-    
-    return result.text;
-}
 
         async function saveBio(bio, niche, tone, length, platform, customLength = null) {
             const historyRef = getHistoryCollectionRef();
@@ -494,32 +532,6 @@
             }).join('');
         }
 
-        function renderResults(rawText, customLength = null, platform) {
-            const bios = rawText.split(/\n\s*\d+\.\s*/).filter(b => b.trim() !== '').map(b => b.trim().replace(/^\*\s*/, ''));
-
-            bioResults.innerHTML = '';
-            const niche = nicheInput.value.trim();
-            const tone = toneSelect.value;
-            const length = lengthSelect.value;
-            
-            if (bios.length === 0) {
-                bios.push("Couldn't generate specific options. Please try refining your niche.");
-            }
-
-            bios.forEach((bio, index) => {
-                const bioElement = document.createElement('div');
-                bioElement.className = 'p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-indigo-400 transition cursor-pointer';
-                bioElement.innerHTML = `<p class="text-gray-700 leading-relaxed">${bio}</p><p class="text-xs text-indigo-400 mt-2">Click to Copy & Save Bio #${index + 1}</p>`;
-                
-                bioElement.addEventListener('click', () => {
-                    copyToClipboard(bio);
-                    saveBio(bio, niche, tone, length, platform, customLength);
-                });
-                bioResults.appendChild(bioElement);
-            });
-            outputArea.classList.remove('hidden');
-        }
-
         // Update copyToClipboard to accept history flag
         function copyToClipboard(text, isHistory = false) {
             const tempInput = document.createElement('textarea');
@@ -568,7 +580,7 @@
             
             // CRITICAL: Ensure we have userId for the server check
             if (!userId || !db) {
-                showMessage("Authentication is missing. Cannot start generation.", true);
+                showMessage("Authentication is missing. Cannot start generation. (Firebase client config not set?)", true);
                 return;
             }
 
@@ -632,19 +644,22 @@
 
         // Event listener to show/hide the custom length input
         lengthSelect.addEventListener('change', () => {
-            if (lengthSelect.value === 'custom' && isPro) {
-                customLengthGroup.classList.remove('hidden');
-            } else {
-                customLengthGroup.classList.add('hidden');
-            }
+            // Check if isPro is true before showing custom length, even if selected
+            const shouldShow = lengthSelect.value === 'custom' && isPro;
+            customLengthGroup.classList.toggle('hidden', !shouldShow);
         });
 
         // Attach event listeners
         generateButton.addEventListener('click', handleGeneration);
         // Initial setup for the Unlock button (will be re-attached dynamically by updateProUI)
-        if(unlockProButton) {
-            unlockProButton.addEventListener('click', handleProUnlock);
-        }
+        document.addEventListener('DOMContentLoaded', () => {
+            const initialUnlockButton = document.getElementById('unlock-pro-button');
+            if(initialUnlockButton) {
+                initialUnlockButton.addEventListener('click', handleProUnlock);
+                unlockProButton = initialUnlockButton;
+            }
+        });
+
 
         // Run initial UI update and make global function available
         updateProUI();
