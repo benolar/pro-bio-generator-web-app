@@ -24,7 +24,15 @@ const db = admin.firestore();
 
 // --- 2. CONFIGURATION & UTILITY FUNCTIONS ---
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const apiKey = process.env.GEMINI_API_KEY; 
+
+if (!apiKey) {
+    console.error('FATAL: GEMINI_API_KEY is not set in Vercel Environment Variables.');
+    // Exit early or throw an error to prevent further execution without the key
+    throw new Error('Server misconfiguration: Gemini API Key missing.'); 
+}
+
+const ai = new GoogleGenAI(apiKey);
 const MODEL_NAME = 'gemini-2.5-flash-preview-09-2025';
 
 // Character limits
