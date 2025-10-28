@@ -23,30 +23,19 @@ const db = admin.apps.length > 0 ? admin.firestore() : null; // Only get firesto
 
 // --- 2. CONFIGURATION & UTILITY FUNCTIONS ---
 
-// --- FIX: ROBUST GEMINI SDK IMPORT v4 ---
-// This uses the most common fallbacks. If it still fails, it logs the module keys for deep debugging.
+// --- FIX: ROBUST GEMINI SDK IMPORT (Using confirmed name from log) ---
 const aiModule = require('@google/generative-ai');
 
-// Safely access the constructor using multiple common fallbacks
-const GoogleGenAI = 
-    aiModule.GoogleGenAI ||                                  // Attempt 1: Standard named export
-    (aiModule.default && aiModule.default.GoogleGenAI) ||    // Attempt 2: Nested property on ES default
-    aiModule.default;                                        // Attempt 3: Class is the direct default export
-    
-if (typeof GoogleGenAI !== 'function') {
-    // CRITICAL: Log the keys of the module object for next-step debugging
-    const keys = Object.keys(aiModule);
-    console.error('Failed to find GoogleGenAI constructor. Module keys:', keys);
-    
-    // Check if a potential, untyped constructor is available (e.g., if the module exports a single class)
-    if (typeof aiModule === 'function') {
-        // If the entire required object is the constructor, use it.
-        // This is a last-resort fix for environments that incorrectly bundle.
-        GoogleGenAI = aiModule; 
-    } else {
-        throw new Error('FATAL: Could not resolve GoogleGenAI constructor. Dependency issue. Check package version.');
-    }
+// The debug log confirmed the constructor is named 'GoogleGenerativeAI'.
+const aiClientConstructor = 
+    aiModule.GoogleGenerativeAI ||                           // 1. Confirmed correct named export
+    aiModule.default;                                        // 2. Fallback to direct default export
+
+if (typeof aiClientConstructor !== 'function') {
+    throw new Error('FATAL: Could not resolve GoogleGenerativeAI constructor. Dependency issue.');
 }
+// We will use GoogleGenAI for internal variable naming consistency
+const GoogleGenAI = aiClientConstructor;
 
 const apiKey = process.env.GEMINI_API_KEY; 
 
