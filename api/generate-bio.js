@@ -23,13 +23,12 @@ const db = admin.apps.length > 0 ? admin.firestore() : null; // Only get firesto
 
 // --- 2. CONFIGURATION & UTILITY FUNCTIONS ---
 
-// --- FIX: ROBUST GEMINI SDK IMPORT (Using confirmed name from log) ---
+// --- ROBUST GEMINI SDK IMPORT ---
 const aiModule = require('@google/generative-ai');
 
-// The constructor is confirmed to be 'GoogleGenerativeAI'
 const aiClientConstructor = 
-    aiModule.GoogleGenerativeAI ||                           // Confirmed correct named export
-    aiModule.default;                                        // Fallback to direct default export
+    aiModule.GoogleGenerativeAI ||                           
+    aiModule.default;                                        
 
 if (typeof aiClientConstructor !== 'function') {
     throw new Error('FATAL: Could not resolve GoogleGenerativeAI constructor. Dependency issue.');
@@ -40,7 +39,6 @@ const apiKey = process.env.GEMINI_API_KEY;
 
 if (!apiKey) {
     console.error('FATAL: GEMINI_API_KEY is not set in Vercel Environment Variables.');
-    // Exit early or throw an error to prevent further execution without the key
     throw new Error('Server misconfiguration: Gemini API Key missing.'); 
 }
 
@@ -51,6 +49,23 @@ const MODEL_NAME = 'gemini-2.5-flash-preview-09-2025';
 const CHAR_LIMITS = {
     'short': 160, 'General': 160, 'medium': 300, 'fixed-long': 500, 'custom': null
 };
+
+// JSON Response Schema for Structured Output (Forces Model Consistency)
+const BIO_SCHEMA = {
+    type: "OBJECT",
+    properties: {
+        "bios": {
+            type: "ARRAY",
+            description: "An array containing five distinct bio suggestions.",
+            items: {
+                type: "STRING",
+                description: "A single, optimized bio string, strictly adhering to the character limit."
+            }
+        }
+    },
+    required: ["bios"]
+};
+
 
 // Input sanitization
 const sanitizeInput = (input) => {
@@ -325,11 +340,12 @@ module.exports = async (req, res) => {
         const sGoals = sanitizeInput(goals);
         const sPlatform = sanitizeInput(platform);
 
+        // **UPDATED SYSTEM PROMPT FOR JSON OUTPUT**
         const systemPrompt = `You are a world-class copywriter specializing in creating highly optimized, attention-grabbing bios for professional and social media platforms.
         Your task is to generate five distinct bio options based on the user's input.
         - Style: The tone must be strictly '${sTone}'.
         - Platform: The bio must be optimized for a '${sPlatform}' audience, including appropriate emojis, keywords, and call-to-actions relevant to that platform.
-        - Format: Output must be a numbered list (1., 2., 3., 4., 5.). Do NOT include any introductory or concluding text, only the list.
+        - Output: You MUST return a single JSON object that conforms to the provided schema. Do not include any text outside the JSON block.
         - Length: Each bio must be concise and strictly adhere to a maximum character count of ${maxLength} characters.`;
 
         const userQuery = `My niche/role is: ${sNiche}. My key goals/keywords are: ${sGoals}.`;
@@ -346,12 +362,13 @@ module.exports = async (req, res) => {
         });
 
         const aiPromise = model.generateContent({
-            // Explicitly set role for better SDK compatibility
             contents: [{ role: 'user', parts: [{ text: userQuery }] }],
-            // FIX APPLIED: Changed 'config' to 'generationConfig' to match the REST API payload requirements.
             generationConfig: { 
                 temperature: 0.8, 
-                maxOutputTokens: Math.ceil((maxLength || 500) / 4 * 5) + 100 
+                maxOutputTokens: Math.ceil((maxLength || 500) / 4 * 5) + 100,
+                // ** CRITICAL FIX: FORCING JSON OUTPUT **
+                responseMimeType: "application/json",
+                responseSchema: BIO_SCHEMA
             }
         });
 
@@ -359,47 +376,55 @@ module.exports = async (req, res) => {
         const result = await Promise.race([aiPromise, timeoutPromise]);
         
         const candidate = result.candidates?.[0];
-        const text = candidate?.content?.parts?.[0]?.text;
+        // The text part will now contain the JSON string
+        const jsonText = candidate?.content?.parts?.[0]?.text;
         const finishReason = candidate?.finishReason;
         const safetyRatings = candidate?.safetyRatings;
-        const promptFeedback = result.promptFeedback; // Check for prompt-level blocking
+        const promptFeedback = result.promptFeedback;
 
-        if (!text) {
-            // Log the full result for internal debugging (user won't see this)
-            // CRITICAL: Ensure this is logged to help the user debug why generation failed
-            console.error("AI Generation failed to return text. Finish Reason:", finishReason, "Safety:", safetyRatings, "Prompt Feedback:", promptFeedback); 
+        let generatedBios = null;
+
+        if (jsonText) {
+            try {
+                const parsedJson = JSON.parse(jsonText);
+                generatedBios = parsedJson.bios;
+            } catch (parseError) {
+                console.error("Failed to parse JSON response from model:", parseError.message);
+                console.error("Received raw text:", jsonText);
+                // Treat parsing error as a model generation failure
+            }
+        }
+
+        // Check if we have valid bios (either from text or parsed JSON)
+        if (!generatedBios || generatedBios.length === 0) {
+            // Log for internal debugging
+            console.error("AI Generation failed to return bios array. Finish Reason:", finishReason, "Safety:", safetyRatings, "Prompt Feedback:", promptFeedback); 
 
             let errorMessage = 'AI failed to generate content. Try a simpler niche or adjust your tone/goals.';
             let reason = finishReason;
 
-            // 1. Check prompt feedback (if the prompt itself was blocked)
             if (promptFeedback && promptFeedback.blockReason) {
                 reason = promptFeedback.blockReason;
                 errorMessage = 'Your request was blocked by safety filters before generation could start. Please review your input.';
-            }
-            // 2. Check candidate finish reason (if candidate exists but failed)
-            else if (finishReason && finishReason.includes('SAFETY')) {
+            } else if (finishReason && finishReason.includes('SAFETY')) {
                  errorMessage = 'Content blocked by safety filters. Please adjust your niche or goals to be less sensitive.';
             } else if (finishReason && finishReason.includes('RECITATION')) {
                  errorMessage = 'Content blocked due to data policy (recitation). Try changing your input slightly.';
             } else if (finishReason && finishReason.includes('MAX_TOKENS')) {
                  errorMessage = 'Generation stopped early due to the max token limit. Try a shorter bio length.';
-            }
-            // 3. Fallback for completely empty response (no candidate, no prompt feedback)
-            else if (!reason && !text) {
+            } else if (!reason) {
                  reason = 'UnknownModelFailure';
                  // Keep the generic message
             }
 
-            // Log the final reason for debugging
-            console.error(`Returning 422 error with final reason: ${reason || 'Unknown'}`);
+            console.error(`Returning 422 error with final reason: ${reason}`);
             
-            // FIX: Use 422 Unprocessable Entity for input-driven model failures
             return res.status(422).json({ error: errorMessage, finishReason: reason });
         }
 
-        // 7. Success
-        res.status(200).json({ text });
+        // 7. Success - Format the list of bios back into a numbered string for the client
+        const outputText = generatedBios.map((bio, index) => `${index + 1}. ${bio.trim()}`).join('\n\n');
+        res.status(200).json({ text: outputText });
 
     } catch (error) {
         let status = 500;
