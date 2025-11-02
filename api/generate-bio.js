@@ -25,7 +25,7 @@ const db = admin.firestore();
 // --- 2. CONFIGURATION & UTILITY FUNCTIONS ---
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const MODEL_NAME = 'gemini-2.5-flash-preview-09-2025';
+const MODEL_NAME = 'gemini-2.5-flash';
 
 // Character limits
 const CHAR_LIMITS = {
@@ -303,18 +303,18 @@ module.exports = async (req, res) => {
 
         const aiPromise = ai.models.generateContent({
             model: MODEL_NAME,
-            contents: [{ parts: [{ text: userQuery }] }],
-            systemInstruction: { parts: [{ text: systemPrompt }] },
-            config: { 
-                temperature: 0.8, 
-                maxOutputTokens: Math.ceil((maxLength || 500) / 4 * 5) + 100 
+            contents: userQuery,
+            config: {
+                systemInstruction: systemPrompt,
+                temperature: 0.8,
+                maxOutputTokens: Math.ceil((maxLength || 500) / 4 * 5) + 100
             }
         });
 
         // 6. Execute AI Request
         const result = await Promise.race([aiPromise, timeoutPromise]);
         
-        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        const text = result.text;
 
         if (!text) {
             return res.status(500).json({ error: 'AI failed to generate content. Try a simpler niche.' });
