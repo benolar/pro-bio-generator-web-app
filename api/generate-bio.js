@@ -1,3 +1,4 @@
+const { GoogleGenAI } = require('@google/genai');
 const admin = require('firebase-admin');
 const { kv } = require('@vercel/kv'); 
 
@@ -7,7 +8,7 @@ if (!admin.apps.length) {
     try {
         const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
         if (!serviceAccountJson) {
-            console.error("FIREBASE_SERVICE_ACCOUNT environment variable is not set. Database will be unavailable.");
+            console.error("FIREBASE_SERVICE_ACCOUNT environment variable is not set.");
         } else {
             const serviceAccount = JSON.parse(serviceAccountJson);
             admin.initializeApp({
@@ -18,76 +19,18 @@ if (!admin.apps.length) {
         console.error("Firebase Admin SDK Initialization Error:", e.message);
     }
 }
-const db = admin.apps.length > 0 ? admin.firestore() : null; // Only get firestore if initialized
+const db = admin.firestore();
 
 
 // --- 2. CONFIGURATION & UTILITY FUNCTIONS ---
 
-// The SDK is no longer strictly necessary, but we keep the key check
-const apiKey = process.env.GEMINI_API_KEY; 
-
-if (!apiKey) {
-    console.error('FATAL: GEMINI_API_KEY is not set in Vercel Environment Variables.');
-    throw new Error('Server misconfiguration: Gemini API Key missing.'); 
-}
-
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const MODEL_NAME = 'gemini-2.5-flash-preview-09-2025';
 
 // Character limits
 const CHAR_LIMITS = {
     'short': 160, 'General': 160, 'medium': 300, 'fixed-long': 500, 'custom': null
 };
-
-// JSON Response Schema for Structured Output (Forces Model Consistency)
-const BIO_SCHEMA = {
-    type: "OBJECT",
-    properties: {
-        "bios": {
-            type: "ARRAY",
-            description: "An array containing five distinct bio suggestions.",
-            items: {
-                type: "STRING",
-                description: "A single, optimized bio string, strictly adhering to the character limit."
-            }
-        }
-    },
-    required: ["bios"]
-};
-
-
-// Function for exponential backoff and retry mechanism
-const fetchWithRetry = async (url, options, maxRetries = 3) => {
-    for (let i = 0; i < maxRetries; i++) {
-        try {
-            const response = await fetch(url, options);
-            if (response.status === 429) { // Too Many Requests
-                throw new Error('Rate limit exceeded');
-            }
-            if (!response.ok) {
-                // Treat server errors (5xx) as potentially retryable
-                if (response.status >= 500 && i < maxRetries - 1) {
-                    throw new Error(`Retryable HTTP error! status: ${response.status}`);
-                }
-                // For final attempt or client errors (4xx), throw a detailed error
-                const errorBody = await response.json().catch(() => ({}));
-                const errorMessage = errorBody.error?.message || `HTTP error! status: ${response.status} (attempt ${i + 1}/${maxRetries})`;
-                throw new Error(errorMessage);
-            }
-            return response;
-        } catch (error) {
-            // Log retry attempts but not as errors unless it's the final failure
-            if (error.message.includes('Retryable HTTP error') || error.message.includes('NetworkError')) {
-                const delay = Math.pow(2, i) * 1000 + Math.random() * 500;
-                console.warn(`Attempt ${i + 1} failed. Retrying in ${Math.round(delay)}ms...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-            } else {
-                throw error; // Re-throw non-retryable errors immediately
-            }
-        }
-    }
-    throw new Error('All fetch attempts failed.');
-};
-
 
 // Input sanitization
 const sanitizeInput = (input) => {
@@ -99,12 +42,6 @@ const RATE_LIMIT = { window: 60, max: 10 }; // 10 requests per 60 seconds (per u
 const IP_RATE_LIMIT = { window: 3600, max: 100 }; // 100 requests per 1 hour (per IP)
 
 async function checkRateLimit(userId, ip) {
-    // CRITICAL GUARD: Check if KV is initialized and ready
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-        console.warn('Vercel KV environment variables missing. Rate limiting disabled.');
-        return; // Skip rate limiting if KV is not configured
-    }
-
     const userKey = `rate_limit_user_${userId}`;
     const ipKey = `rate_limit_ip_${ip}`;
     
@@ -167,11 +104,6 @@ const validateBioRequest = (body) => {
 
 // Server-side verification of stored fwTransactionId and refresh isPro status
 async function verifyStoredTransactionAndRefresh(userId, appId) {
-    if (!db || !admin.apps.length) {
-         console.warn("Skipping verification: Firebase Admin SDK is not ready.");
-         return false;
-    }
-    
     try {
         const statusDocRef = db.doc(`artifacts/${appId}/users/${userId}/profile/status`);
         const statusSnap = await statusDocRef.get();
@@ -253,10 +185,6 @@ async function verifyStoredTransactionAndRefresh(userId, appId) {
  * @returns {Promise<object>} The decoded Firebase ID token payload.
  */
 async function validateSession(req) {
-    if (!db || !admin.apps.length) {
-         throw new Error('Server misconfiguration: Firebase Admin SDK is not initialized.');
-    }
-    
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         throw new Error('No session token provided');
@@ -281,10 +209,7 @@ module.exports = async (req, res) => {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
-    
-    // CRITICAL GUARD: Check all external services are configured
     if (!process.env.GEMINI_API_KEY || !admin.apps.length) {
-        console.error(`AI Key Present: ${!!process.env.GEMINI_API_KEY}, Admin SDK Ready: ${admin.apps.length > 0}`);
         return res.status(503).json({ error: 'Server configuration error: AI or Database service unavailable.' });
     }
 
@@ -362,81 +287,41 @@ module.exports = async (req, res) => {
         const sGoals = sanitizeInput(goals);
         const sPlatform = sanitizeInput(platform);
 
-        // **UPDATED SYSTEM PROMPT FOR JSON OUTPUT (Simpler)**
-        const systemInstruction = `You are a copywriter. Generate five distinct bio options optimized for '${sPlatform}' using a '${sTone}' style. The maximum length for each bio is ${maxLength} characters. Return ONLY a JSON object that matches the provided schema.`;
+        const systemPrompt = `You are a world-class copywriter specializing in creating highly optimized, attention-grabbing bios for professional and social media platforms.
+        Your task is to generate five distinct bio options based on the user's input.
+        - Style: The tone must be strictly '${sTone}'.
+        - Platform: The bio must be optimized for a '${sPlatform}' audience, including appropriate emojis, keywords, and call-to-actions relevant to that platform.
+        - Format: Output must be a numbered list (1., 2., 3., 4., 5.). Do NOT include any introductory or concluding text, only the list.
+        - Length: Each bio must be concise and strictly adhere to a maximum character count of ${maxLength} characters.`;
 
         const userQuery = `My niche/role is: ${sNiche}. My key goals/keywords are: ${sGoals}.`;
-        
-        // --- Execute AI Request using direct FETCH and Retry ---
 
-        const payload = {
-            contents: [{ role: 'user', parts: [{ text: userQuery }] }],
-            systemInstruction: { parts: [{ text: systemInstruction }] },
-            generationConfig: { 
+        const TIMEOUT = 30000;
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('AI Request timeout')), TIMEOUT)
+        );
+
+        const aiPromise = ai.models.generateContent({
+            model: MODEL_NAME,
+            contents: [{ parts: [{ text: userQuery }] }],
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            config: { 
                 temperature: 0.8, 
-                maxOutputTokens: Math.ceil((maxLength || 500) / 4 * 5) + 100,
-                responseMimeType: "application/json",
-                responseSchema: BIO_SCHEMA
+                maxOutputTokens: Math.ceil((maxLength || 500) / 4 * 5) + 100 
             }
-        };
-
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`;
-        
-        const response = await fetchWithRetry(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
         });
-        
-        const result = await response.json();
-        
-        const candidate = result.candidates?.[0];
-        const jsonText = candidate?.content?.parts?.[0]?.text;
-        const finishReason = candidate?.finishReason;
-        const safetyRatings = candidate?.safetyRatings;
-        const promptFeedback = result.promptFeedback;
 
-        let generatedBios = null;
+        // 6. Execute AI Request
+        const result = await Promise.race([aiPromise, timeoutPromise]);
+        
+        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
 
-        if (jsonText) {
-            try {
-                const parsedJson = JSON.parse(jsonText);
-                generatedBios = parsedJson.bios;
-            } catch (parseError) {
-                console.error("Failed to parse JSON response from model:", parseError.message);
-                // Treat parsing error as a model generation failure
-            }
+        if (!text) {
+            return res.status(500).json({ error: 'AI failed to generate content. Try a simpler niche.' });
         }
 
-        if (!generatedBios || generatedBios.length === 0) {
-            // Log for internal debugging
-            console.error("AI Generation failed to return bios array. Finish Reason:", finishReason, "Safety:", safetyRatings, "Prompt Feedback:", promptFeedback); 
-
-            let errorMessage = 'AI failed to generate content. Try a simpler niche or adjust your tone/goals.';
-            let reason = finishReason;
-
-            if (promptFeedback && promptFeedback.blockReason) {
-                reason = promptFeedback.blockReason;
-                errorMessage = 'Your request was blocked by safety filters before generation could start. Please review your input.';
-            } else if (finishReason && finishReason.includes('SAFETY')) {
-                 errorMessage = 'Content blocked by safety filters. Please adjust your niche or goals to be less sensitive.';
-            } else if (finishReason && finishReason.includes('RECITATION')) {
-                 errorMessage = 'Content blocked due to data policy (recitation). Try changing your input slightly.';
-            } else if (finishReason && finishReason.includes('MAX_TOKENS')) {
-                 errorMessage = 'Generation stopped early due to the max token limit. Try a shorter bio length.';
-            } else if (!reason) {
-                 reason = 'UnknownModelFailure';
-                 // Keep the generic message
-            }
-
-            console.error(`Returning 422 error with final reason: ${reason}`);
-            
-            return res.status(422).json({ error: errorMessage, finishReason: reason });
-        }
-
-        // 7. Success - Format the list of bios back into a numbered string for the client
-        const outputText = generatedBios.map((bio, index) => `${index + 1}. ${bio.trim()}`).join('\n\n');
-        res.status(200).json({ text: outputText });
+        // 7. Success
+        res.status(200).json({ text });
 
     } catch (error) {
         let status = 500;
@@ -444,7 +329,7 @@ module.exports = async (req, res) => {
             status = 401; // Unauthorized
         } else if (error.message.includes('Rate limit') || error.message.includes('timeout')) {
             status = 429; // Too Many Requests
-        } else if (error.message.includes('Validation failed') || error.message.includes('HTTP error! status: 400')) {
+        } else if (error.message.includes('Validation failed')) {
             status = 400; // Bad Request
         }
         
