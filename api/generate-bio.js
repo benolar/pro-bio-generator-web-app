@@ -43,7 +43,7 @@ const IP_RATE_LIMIT = { window: 3600, max: 100 }; // 100 requests per 1 hour (pe
 
 async function checkRateLimit(userId, ip) {
     // Gracefully disable rate limiting if Vercel KV is not configured.
-    if (!process.env.bgnrt_KV_REST_API_URL || !process.env.bgnrt_KV_REST_API_TOKEN) {
+    if (!process.env.BGNRT_KV_REST_API_URL || !process.env.BGNRT_KV_REST_API_TOKEN) {
         console.warn('Vercel KV environment variables not set. Rate limiting is disabled.');
         return; // Skip rate limiting
     }
