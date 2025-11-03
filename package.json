@@ -5,7 +5,7 @@
   "main": "api/generate-bio.js",
   "scripts": {
     "start": "node api/generate-bio.js",
-    "build": "tailwindcss -i ./input.css -o ./output.css"
+    "build": "mkdir -p public && cp ./index.html ./public/ && tailwindcss -i ./input.css -o ./public/output.css"
   },
   "dependencies": {
     "@google/genai": "^1.27.0",
