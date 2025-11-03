@@ -563,6 +563,57 @@
             }
         }
 
+        function renderResults(resultText, customLength, platform) {
+            // 1. Unhide the output area and clear previous results
+            outputArea.classList.remove('hidden');
+            bioResults.innerHTML = ''; 
+
+            // 2. Parse the bios using a regex to split by number and period
+            const bios = resultText.split(/\d+\.\s?/).filter(b => b.trim().length > 0);
+
+            // 3. Get current form values for the save function's context
+            const niche = nicheInput.value.trim();
+            const tone = toneSelect.value;
+            const length = lengthSelect.value;
+
+            // 4. Render each bio into a card
+            bios.forEach(bio => {
+                const bioText = bio.trim();
+                const charCount = bioText.length;
+
+                const bioCard = document.createElement('div');
+                bioCard.className = 'p-4 bg-gray-50 rounded-lg border border-gray-200 transition-all hover:shadow-md';
+                
+                bioCard.innerHTML = `
+                    <p class="text-gray-800 mb-3">${bioText}</p>
+                    <div class="flex items-center justify-between text-xs text-gray-500">
+                        <span>${charCount} characters</span>
+                        <div class="flex items-center space-x-3">
+                            <button class="copy-btn font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">Copy</button>
+                            <button class="save-btn font-semibold text-green-600 hover:text-green-800 transition-colors">Save</button>
+                        </div>
+                    </div>
+                `;
+
+                // 5. Attach event listeners to the new buttons
+                const copyBtn = bioCard.querySelector('.copy-btn');
+                const saveBtn = bioCard.querySelector('.save-btn');
+
+                copyBtn.addEventListener('click', () => {
+                    copyToClipboard(bioText, false); // 'false' indicates it's not from the history list
+                });
+
+                saveBtn.addEventListener('click', (e) => {
+                    e.target.disabled = true;
+                    e.target.textContent = 'Saved!';
+                    saveBio(bioText, niche, tone, length, platform, customLength);
+                });
+
+                bioResults.appendChild(bioCard);
+            });
+        }
+
+
         // --- Generation Handler (with rate limiting) ---
         async function handleGeneration() {
             // Add rate limiting
