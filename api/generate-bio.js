@@ -1,6 +1,6 @@
 const { GoogleGenAI } = require('@google/genai');
 const admin = require('firebase-admin');
-const { kv } = require('@vercel/kv'); 
+const { createClient } = require('@vercel/kv'); 
 
 // --- 1. FIREBASE ADMIN SDK INITIALIZATION ---
 
@@ -24,6 +24,17 @@ const db = admin.firestore();
 
 // --- 2. CONFIGURATION & UTILITY FUNCTIONS ---
 
+// Conditionally initialize Vercel KV client with custom env vars
+let kv;
+if (process.env.BGNRT_KV_REST_API_URL && process.env.BGNRT_KV_REST_API_TOKEN) {
+    kv = createClient({
+        url: process.env.BGNRT_KV_REST_API_URL,
+        token: process.env.BGNRT_KV_REST_API_TOKEN,
+    });
+} else {
+    kv = null;
+}
+
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const MODEL_NAME = 'gemini-2.5-flash';
 
@@ -42,9 +53,9 @@ const RATE_LIMIT = { window: 60, max: 10 }; // 10 requests per 60 seconds (per u
 const IP_RATE_LIMIT = { window: 3600, max: 100 }; // 100 requests per 1 hour (per IP)
 
 async function checkRateLimit(userId, ip) {
-    // Gracefully disable rate limiting if Vercel KV is not configured.
-    if (!process.env.BGNRT_KV_REST_API_URL || !process.env.BGNRT_KV_REST_API_TOKEN) {
-        console.warn('Vercel KV environment variables not set. Rate limiting is disabled.');
+    // Gracefully disable rate limiting if the kv client was not initialized.
+    if (!kv) {
+        console.warn('Vercel KV not configured. Rate limiting is disabled.');
         return; // Skip rate limiting
     }
 
