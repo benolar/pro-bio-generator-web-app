@@ -1,3 +1,4 @@
+
 const { GoogleGenAI } = require('@google/genai');
 const admin = require('firebase-admin');
 const { createClient } = require('@vercel/kv'); 
@@ -219,6 +220,30 @@ async function validateSession(req) {
     }
 }
 
+// --- NEW: Resilient AI Generation with Retries ---
+async function generateWithRetry(payload, maxRetries = 3) {
+    let lastError;
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            const result = await ai.models.generateContent(payload);
+            return result; // Success
+        } catch (error) {
+            lastError = error;
+            // Check for a specific, retryable error from the Gemini API
+            if (error.message && (error.message.includes('503') || error.message.toLowerCase().includes('unavailable'))) {
+                console.warn(`Attempt ${i + 1} failed with 503 error. Retrying...`);
+                // Exponential backoff
+                await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
+            } else {
+                // Not a retryable error, throw immediately
+                throw error;
+            }
+        }
+    }
+    // If all retries fail, throw the last captured error
+    throw lastError;
+}
+
 
 // --- 4. MAIN SERVERLESS HANDLER ---
 
@@ -298,7 +323,7 @@ module.exports = async (req, res) => {
             }
         }
         
-        // 5. Sanitize and Construct AI Prompt
+        // 6. Sanitize and Construct AI Prompt
         const sNiche = sanitizeInput(niche);
         const sTone = sanitizeInput(tone);
         const sGoals = sanitizeInput(goals);
@@ -313,12 +338,7 @@ module.exports = async (req, res) => {
 
         const userQuery = `My niche/role is: ${sNiche}. My key goals/keywords are: ${sGoals}.`;
 
-        const TIMEOUT = 30000;
-        const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('AI Request timeout')), TIMEOUT)
-        );
-
-        const aiPromise = ai.models.generateContent({
+        const aiPayload = {
             model: MODEL_NAME,
             contents: userQuery,
             config: {
@@ -326,10 +346,10 @@ module.exports = async (req, res) => {
                 temperature: 0.8,
                 maxOutputTokens: Math.ceil((maxLength || 500) / 4 * 5) + 100
             }
-        });
+        };
 
-        // 6. Execute AI Request
-        const result = await Promise.race([aiPromise, timeoutPromise]);
+        // 7. Execute AI Request with Retry Logic
+        const result = await generateWithRetry(aiPayload);
         
         const text = result.text;
 
@@ -337,20 +357,40 @@ module.exports = async (req, res) => {
             return res.status(500).json({ error: 'AI failed to generate content. Try a simpler niche.' });
         }
 
-        // 7. Success
+        // 8. Success
         res.status(200).json({ text });
 
     } catch (error) {
+        console.error(`Request failed for user ${userId || 'unknown'}:`, error);
+
         let status = 500;
+        let errorMessage = 'An unexpected server error occurred.';
+
         if (error.message.includes('Invalid session') || error.message.includes('No session token')) {
             status = 401; // Unauthorized
-        } else if (error.message.includes('Rate limit') || error.message.includes('timeout')) {
+            errorMessage = 'Your session is invalid. Please refresh the page.';
+        } else if (error.message.includes('Rate limit')) {
             status = 429; // Too Many Requests
+            errorMessage = error.message;
         } else if (error.message.includes('Validation failed')) {
             status = 400; // Bad Request
+            errorMessage = 'Invalid input provided.';
+        } else {
+            // Attempt to parse a nested error from the AI service
+            try {
+                // The error message might be a stringified JSON
+                const nestedError = JSON.parse(error.message);
+                if (nestedError.error && nestedError.error.message) {
+                    errorMessage = nestedError.error.message;
+                    // Try to get a more specific status code
+                    if (nestedError.error.code === 503) status = 503; // Service Unavailable
+                }
+            } catch (e) {
+                 // Not a JSON string, use the original message if it's not generic
+                 if(error.message) errorMessage = error.message;
+            }
         }
         
-        console.error(`Request failed for user ${userId || 'unknown'}:`, error.message);
-        res.status(status).json({ error: error.message });
+        res.status(status).json({ error: errorMessage });
     }
 };
