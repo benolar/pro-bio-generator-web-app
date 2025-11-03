@@ -1,7 +1,7 @@
 // Vercel Serverless Function: api/create-checkout.js
 // This function creates a Flutterwave Payment link.
 
-const FLUTTERWAVE_API_URL = 'https://api.flutterwave.com/v3/payments';
+const FLUTTERWAVE_API_URL = 'https://api.flutterwave.com/v3/payment-links';
 
 // Validate TRUSTED_APP_ID format and presence early
 const TRUSTED_APP_ID = process.env.SECURE_APP_ID;
@@ -115,7 +115,6 @@ module.exports = async (req, res) => {
             amount: AMOUNT,
             currency: CURRENCY,
             redirect_url: `${originUrl}?payment=success&tx_ref=${tx_ref}`, // Added tx_ref for later verification
-            payment_options: "card,mobilemoney,banktransfer",
             customer: {
                 email: "anonuser@biogen.com", // Flutterwave requires a placeholder email
                 phonenumber: "0000000000",
