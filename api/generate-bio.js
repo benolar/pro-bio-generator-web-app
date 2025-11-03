@@ -1,4 +1,5 @@
 
+
 const { GoogleGenAI } = require('@google/genai');
 const admin = require('firebase-admin');
 const { createClient } = require('@vercel/kv'); 
@@ -343,8 +344,7 @@ module.exports = async (req, res) => {
             contents: userQuery,
             config: {
                 systemInstruction: systemPrompt,
-                temperature: 0.8,
-                maxOutputTokens: Math.ceil((maxLength || 500) / 4 * 5) + 100
+                temperature: 0.8
             }
         };
 
@@ -354,6 +354,7 @@ module.exports = async (req, res) => {
         const text = result.text;
 
         if (!text) {
+            console.error('AI generation returned an empty text response. Full API response:', JSON.stringify(result, null, 2));
             return res.status(500).json({ error: 'AI failed to generate content. Try a simpler niche.' });
         }
 
