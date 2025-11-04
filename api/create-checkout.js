@@ -1,7 +1,7 @@
 // Vercel Serverless Function: api/create-checkout.js
 // This function creates a Flutterwave Payment link.
 
-const FLUTTERWAVE_API_URL = 'https://api.flutterwave.com/v3/payment-links';
+const FLUTTERWAVE_API_URL = 'https://api.flutterwave.com/v4/hosted-links';
 
 // Validate TRUSTED_APP_ID format and presence early
 const TRUSTED_APP_ID = process.env.SECURE_APP_ID;

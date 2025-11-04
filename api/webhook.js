@@ -13,8 +13,8 @@ export const config = {
 
 let admin; // Initialized Firebase Admin SDK 
 let db;    // Firestore instance
-const FW_SECRET_KEY = process.env.FLUTTERWAVE_SECRET_KEY;
-const WEBHOOK_HASH = process.env.FLUTTERWAVE_WEBHOOK_HASH;
+// Use a dedicated secret for V4 webhooks, set in your Flutterwave dashboard.
+const WEBHOOK_SECRET = process.env.FLUTTERWAVE_WEBHOOK_SECRET;
 
 // Default appId for logging/fallback if webhook fails before body parse
 const FALLBACK_APP_ID = 'default-app-id';
@@ -110,26 +110,26 @@ module.exports = async (req, res) => {
             req.on('error', reject);
         });
 
-        // 1) Verify static webhook hash header (if configured)
-        const headerHash = req.headers['verif-hash'];
-        if (WEBHOOK_HASH && headerHash !== WEBHOOK_HASH) {
-            console.error('⚠️ Flutterwave webhook header hash mismatch or missing.');
-            await recordWebhookFailure(FALLBACK_APP_ID, null, 'header-hash-mismatch');
-            return res.status(401).send('Unauthorized');
+        // --- START: FLUTTERWAVE V4 WEBHOOK VERIFICATION ---
+        const signature = req.headers['flw-webhook-signature'];
+
+        if (!WEBHOOK_SECRET) {
+            console.error('FLUTTERWAVE_WEBHOOK_SECRET is not set. Webhook cannot be verified.');
+            await recordWebhookFailure(FALLBACK_APP_ID, null, 'webhook-secret-missing');
+            return res.status(401).send('Unauthorized: Server configuration error.');
         }
 
-        // 2) Verify HMAC signature over raw body (optional stronger check)
-        const signatureHeader = req.headers['x-flutterwave-signature'];
-        if (FW_SECRET_KEY && signatureHeader) {
-            const expected = crypto.createHmac('sha256', FW_SECRET_KEY).update(bodyBuffer).digest('hex');
-            if (expected !== signatureHeader) {
-                console.error('⚠️ Flutterwave webhook HMAC signature mismatch.');
-                await recordWebhookFailure(FALLBACK_APP_ID, null, 'hmac-mismatch');
-                return res.status(401).send('Invalid signature');
-            }
+        // The signature is a SHA256 HMAC of the request body.
+        const hash = crypto.createHmac('sha256', WEBHOOK_SECRET).update(bodyBuffer).digest('hex');
+        
+        if (hash !== signature) {
+            console.error('⚠️ Flutterwave webhook V4 HMAC signature mismatch.');
+            await recordWebhookFailure(FALLBACK_APP_ID, null, 'v4-hmac-mismatch');
+            return res.status(401).send('Invalid signature');
         }
+        // --- END: FLUTTERWAVE V4 WEBHOOK VERIFICATION ---
 
-        // Parse the body AFTER reading raw buffer
+        // Parse the body AFTER reading raw buffer and verifying signature
         const event = JSON.parse(bodyBuffer.toString('utf8'));
         const { event: eventType, data: transactionData } = event;
 

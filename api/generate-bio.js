@@ -159,7 +159,7 @@ async function verifyStoredTransactionAndRefresh(userId, appId) {
         if (!fwTx) return statusData?.isPro === true;
 
         // 4. CACHE MISS / EXPIRED: Call Flutterwave verify endpoint
-        const verifyResp = await fetch(`https://api.flutterwave.com/v3/transactions/${fwTx}/verify`, {
+        const verifyResp = await fetch(`https://api.flutterwave.com/v4/transactions/${fwTx}`, {
             headers: { 'Authorization': `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}` }
         });
 
