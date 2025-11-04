@@ -3,6 +3,7 @@
 
 const firebaseAdmin = require('firebase-admin');
 const crypto = require('crypto');
+const { createClient } = require('@vercel/kv');
 
 // IMPORTANT: Vercel serverless functions need this to read the raw body for signature verification.
 export const config = {
@@ -13,11 +14,63 @@ export const config = {
 
 let admin; // Initialized Firebase Admin SDK 
 let db;    // Firestore instance
-// Use a dedicated secret for V4 webhooks, set in your Flutterwave dashboard.
 const WEBHOOK_SECRET = process.env.FLUTTERWAVE_WEBHOOK_SECRET;
-
-// Default appId for logging/fallback if webhook fails before body parse
 const FALLBACK_APP_ID = 'default-app-id';
+
+// --- Vercel KV Initialization (for OAuth token) ---
+let kv;
+if (process.env.BGNRT_KV_REST_API_URL && process.env.BGNRT_KV_REST_API_TOKEN) {
+    kv = createClient({
+        url: process.env.BGNRT_KV_REST_API_URL,
+        token: process.env.BGNRT_KV_REST_API_TOKEN,
+    });
+} else {
+    kv = null;
+    console.error('Vercel KV is not configured. OAuth token caching for API verification will fail.');
+}
+
+// --- Flutterwave OAuth 2.0 Token Management (for verification call) ---
+const FLUTTERWAVE_TOKEN_URL = 'https://idp.flutterwave.com/realms/flutterwave/protocol/openid-connect/token';
+const OAUTH_TOKEN_KEY = 'flutterwave_oauth_token';
+
+async function getFlutterwaveAuthToken() {
+    if (!kv) throw new Error('Vercel KV is required for OAuth token caching.');
+
+    const cachedToken = await kv.get(OAUTH_TOKEN_KEY);
+    // Refresh if token is missing or expires in the next 60 seconds
+    if (cachedToken && cachedToken.expires_at > Date.now() + 60000) {
+        return cachedToken.access_token;
+    }
+
+    const CLIENT_ID = process.env.FLUTTERWAVE_CLIENT_ID;
+    const CLIENT_SECRET = process.env.FLUTTERWAVE_CLIENT_SECRET;
+
+    if (!CLIENT_ID || !CLIENT_SECRET) {
+        throw new Error('Flutterwave Client ID or Secret is not configured for token refresh.');
+    }
+
+    const response = await fetch(FLUTTERWAVE_TOKEN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            'client_id': CLIENT_ID, 'client_secret': CLIENT_SECRET, 'grant_type': 'client_credentials'
+        })
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.access_token) {
+        console.error('Flutterwave OAuth Error in Webhook:', data);
+        throw new Error('Failed to get Flutterwave auth token for verification.');
+    }
+
+    const newToken = {
+        access_token: data.access_token,
+        expires_at: Date.now() + (data.expires_in * 1000)
+    };
+    await kv.set(OAUTH_TOKEN_KEY, newToken);
+    return newToken.access_token;
+}
+
 
 try {
     // --- START: SECURE FIREBASE ADMIN INITIALIZATION ---
@@ -27,7 +80,6 @@ try {
             throw new Error("Admin SDK setup failed.");
         }
         
-        // CRITICAL: Parse the JSON string from the environment variable
         const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
         
         admin = firebaseAdmin.initializeApp({
@@ -55,7 +107,6 @@ async function updateProStatusInFirestore(userId, appId, transactionId) {
     await docRef.set({
         isPro: true,
         proActivatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        // Store the Flutterwave transaction ID for audit purposes
         fwTransactionId: transactionId 
     }, { merge: true });
     
@@ -92,17 +143,14 @@ module.exports = async (req, res) => {
         return res.status(405).send('Method Not Allowed');
     }
 
-    // Ensure Admin SDK ready
-    if (!db || !admin) {
-        console.error('Firebase Admin SDK is not ready. Returning 500 for webhook retry.');
-        return res.status(500).send('Database connection failed.');
+    if (!db || !admin || !kv) {
+        console.error('A required service (Firebase/KV) is not ready. Returning 500 for webhook retry.');
+        return res.status(500).send('Server service connection failed.');
     }
     
-    // Default appId for early failure logging (will be updated after body parse)
     let appId = FALLBACK_APP_ID; 
 
     try {
-        // Read raw body first (required for signature verification)
         const bodyBuffer = await new Promise((resolve, reject) => {
             const chunks = [];
             req.on('data', (chunk) => chunks.push(chunk));
@@ -110,8 +158,7 @@ module.exports = async (req, res) => {
             req.on('error', reject);
         });
 
-        // --- START: FLUTTERWAVE V4 WEBHOOK VERIFICATION ---
-        const signature = req.headers['flw-webhook-signature'];
+        const signature = req.headers['flutterwave-signature'];
 
         if (!WEBHOOK_SECRET) {
             console.error('FLUTTERWAVE_WEBHOOK_SECRET is not set. Webhook cannot be verified.');
@@ -119,66 +166,75 @@ module.exports = async (req, res) => {
             return res.status(401).send('Unauthorized: Server configuration error.');
         }
 
-        // The signature is a SHA256 HMAC of the request body.
-        const hash = crypto.createHmac('sha256', WEBHOOK_SECRET).update(bodyBuffer).digest('hex');
+        const hash = crypto.createHmac('sha256', WEBHOOK_SECRET).update(bodyBuffer).digest('base64');
         
         if (hash !== signature) {
-            console.error('⚠️ Flutterwave webhook V4 HMAC signature mismatch.');
-            await recordWebhookFailure(FALLBACK_APP_ID, null, 'v4-hmac-mismatch');
+            console.error('⚠️ Flutterwave webhook signature mismatch.');
+            await recordWebhookFailure(FALLBACK_APP_ID, null, 'signature-mismatch');
             return res.status(401).send('Invalid signature');
         }
-        // --- END: FLUTTERWAVE V4 WEBHOOK VERIFICATION ---
 
-        // Parse the body AFTER reading raw buffer and verifying signature
         const event = JSON.parse(bodyBuffer.toString('utf8'));
         const { event: eventType, data: transactionData } = event;
 
-        // basic structure checks
         if (!transactionData || !transactionData.id) {
             console.error('Malformed webhook payload: missing transaction data/id.');
             return res.status(400).send('Bad Request');
         }
 
-        // Timestamp validation if present
         if (transactionData.created_at && !validateWebhookTimestamp(transactionData.created_at)) {
             console.error('Webhook timestamp validation failed');
             return res.status(400).send('Invalid webhook timestamp');
         }
 
         const transactionId = transactionData.id;
-        // Update appId with the actual value from meta for accurate logging and Firestore pathing
         appId = transactionData.meta?.consumer_app || FALLBACK_APP_ID;
 
-        // Idempotency: use Firestore document per transaction (safer for serverless)
         const processedDocRef = db.doc(`artifacts/${appId}/webhooks/processed/${transactionId}`);
         const processedDoc = await processedDocRef.get();
         if (processedDoc.exists) {
-            // already handled
             return res.status(200).json({ status: 'Already processed' });
         }
 
-        // Only mark processed if everything below succeeds
         if (eventType === 'charge.completed' || eventType === 'transfer.completed') {
-            if (transactionData.status !== 'successful') {
-                console.log(`Transaction ${transactionId} status not successful.`);
-                return res.status(200).json({ received: true });
+            
+            // --- CRITICAL: Verify transaction with API before giving value ---
+            const authToken = await getFlutterwaveAuthToken();
+            const verifyResp = await fetch(`https://f4bexperience.flutterwave.com/v4/transactions/${transactionId}`, {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            const verifyData = await verifyResp.json();
+
+            if (verifyData.status !== "success" || verifyData.data?.status !== "successful") {
+                await recordWebhookFailure(appId, transactionId, 'API verification failed: Transaction not successful');
+                return res.status(400).send('Transaction not successful upon API verification');
             }
+
+            const expectedAmount = parseFloat(process.env.FLUTTERWAVE_AMOUNT);
+            const expectedCurrency = process.env.FLUTTERWAVE_CURRENCY || 'USD';
+            
+            if (parseFloat(verifyData.data.amount) !== expectedAmount || verifyData.data.currency !== expectedCurrency) {
+                console.warn(`Webhook Security Mismatch: Expected ${expectedCurrency} ${expectedAmount}, got ${verifyData.data.currency} ${verifyData.data.amount} for TX ${transactionId}`);
+                await recordWebhookFailure(appId, transactionId, 'API verification failed: Amount/currency mismatch');
+                return res.status(400).send('Transaction amount or currency mismatch');
+            }
+            // --- END: Verification ---
 
             const userId = transactionData.meta?.consumer_id;
             if (!userId) {
                 console.error('Flutterwave event missing userId in meta.', transactionId);
+                await recordWebhookFailure(appId, transactionId, 'missing-userid-in-meta');
                 return res.status(400).send('Missing userId in metadata');
             }
 
-            // Update user's Pro status
             await updateProStatusInFirestore(userId, appId, transactionId);
 
-            // Mark webhook as processed
             await processedDocRef.set({
                 processedAt: admin.firestore.FieldValue.serverTimestamp(),
                 userId,
                 transactionId
             }, { merge: true });
+
         } else {
             console.log(`Unhandled Flutterwave event type ${eventType}`);
         }
@@ -187,7 +243,6 @@ module.exports = async (req, res) => {
 
     } catch (error) {
         console.error('Flutterwave Webhook Processing Error:', error);
-        // record failure for ops to inspect, using the last known appId
         try { await recordWebhookFailure(appId, null, error.message || error); } catch (e) {}
         return res.status(500).send('Failed to process webhook');
     }

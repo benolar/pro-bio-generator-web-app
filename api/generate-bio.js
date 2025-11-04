@@ -121,6 +121,52 @@ const validateBioRequest = (body) => {
     return errors;
 };
 
+// --- Flutterwave OAuth 2.0 Token Management (for payment verification) ---
+const FLUTTERWAVE_TOKEN_URL = 'https://idp.flutterwave.com/realms/flutterwave/protocol/openid-connect/token';
+const OAUTH_TOKEN_KEY = 'flutterwave_oauth_token';
+
+async function getFlutterwaveAuthToken() {
+    if (!kv) throw new Error('Vercel KV is required for OAuth token caching.');
+
+    const cachedToken = await kv.get(OAUTH_TOKEN_KEY);
+    // Refresh if token is missing or expires in the next 60 seconds
+    if (cachedToken && cachedToken.expires_at > Date.now() + 60000) {
+        return cachedToken.access_token;
+    }
+
+    const CLIENT_ID = process.env.FLUTTERWAVE_CLIENT_ID;
+    const CLIENT_SECRET = process.env.FLUTTERWAVE_CLIENT_SECRET;
+
+    if (!CLIENT_ID || !CLIENT_SECRET) {
+        throw new Error('Flutterwave Client ID or Secret is not configured.');
+    }
+
+    const response = await fetch(FLUTTERWAVE_TOKEN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            'client_id': CLIENT_ID,
+            'client_secret': CLIENT_SECRET,
+            'grant_type': 'client_credentials'
+        })
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.access_token) {
+        console.error('Flutterwave OAuth Error:', data);
+        throw new Error('Failed to get Flutterwave auth token.');
+    }
+
+    const newToken = {
+        access_token: data.access_token,
+        // expires_in is in seconds, convert to ms timestamp for comparison
+        expires_at: Date.now() + (data.expires_in * 1000)
+    };
+
+    await kv.set(OAUTH_TOKEN_KEY, newToken);
+    return newToken.access_token;
+}
+
 // Server-side verification of stored fwTransactionId and refresh isPro status
 async function verifyStoredTransactionAndRefresh(userId, appId) {
     try {
@@ -158,9 +204,10 @@ async function verifyStoredTransactionAndRefresh(userId, appId) {
         // 3. NO TX ID: Fallback if no transaction ID exists
         if (!fwTx) return statusData?.isPro === true;
 
-        // 4. CACHE MISS / EXPIRED: Call Flutterwave verify endpoint
-        const verifyResp = await fetch(`https://api.flutterwave.com/v4/transactions/${fwTx}`, {
-            headers: { 'Authorization': `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}` }
+        // 4. CACHE MISS / EXPIRED: Get OAuth token and call Flutterwave verify endpoint
+        const authToken = await getFlutterwaveAuthToken();
+        const verifyResp = await fetch(`https://f4bexperience.flutterwave.com/v4/transactions/${fwTx}`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
         });
 
         if (!verifyResp.ok) {
