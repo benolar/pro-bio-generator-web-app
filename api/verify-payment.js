@@ -43,7 +43,7 @@ module.exports = async (req, res) => {
 
     try {
         // 1. Verify Transaction with Flutterwave
-        const verifyResp = await fetch(`https://api.flutterwave.com/v3/transactions/${transactionId}/verify`, {
+        const verifyResp = await fetch(`https://api.flutterwave.com/v4/transactions/${transactionId}`, {
             headers: { Authorization: `Bearer ${SECRET_KEY}` }
         });
         const data = await verifyResp.json();
