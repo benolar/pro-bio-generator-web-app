@@ -206,7 +206,7 @@ async function verifyStoredTransactionAndRefresh(userId, appId) {
 
         // 4. CACHE MISS / EXPIRED: Get OAuth token and call Flutterwave verify endpoint
         const authToken = await getFlutterwaveAuthToken();
-        const verifyResp = await fetch(`https://f4bexperience.flutterwave.com/v4/transactions/${fwTx}`, {
+        const verifyResp = await fetch(`https://api.flutterwave.com/v4/transactions/${fwTx}`, {
             headers: { 'Authorization': `Bearer ${authToken}` }
         });
 

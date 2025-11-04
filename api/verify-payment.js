@@ -107,7 +107,7 @@ module.exports = async (req, res) => {
         const authToken = await getFlutterwaveAuthToken();
 
         // 2. Verify Transaction with Flutterwave
-        const verifyResp = await fetch(`https://f4bexperience.flutterwave.com/v4/transactions/${transactionId}`, {
+        const verifyResp = await fetch(`https://api.flutterwave.com/v4/transactions/${transactionId}`, {
             headers: { Authorization: `Bearer ${authToken}` }
         });
         const data = await verifyResp.json();

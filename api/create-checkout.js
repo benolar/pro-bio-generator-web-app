@@ -3,7 +3,7 @@
 
 const { createClient } = require('@vercel/kv');
 
-const FLUTTERWAVE_API_URL = 'https://f4bexperience.flutterwave.com/v4/hosted-links';
+const FLUTTERWAVE_API_URL = 'https://api.flutterwave.com/v4/hosted-links';
 
 // --- Vercel KV Initialization ---
 let kv;
