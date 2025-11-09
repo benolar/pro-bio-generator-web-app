@@ -1,5 +1,5 @@
 // Vercel Serverless Function: api/initiate-payment.js
-// Implements the Flutterwave v4 "General Flow" to create a charge.
+// Implements the Flutterwave v4 "Orchestrator Flow" to create a charge.
 
 const admin = require('firebase-admin');
 const { createClient } = require('@vercel/kv');
@@ -88,63 +88,28 @@ module.exports = async (req, res) => {
         const effectiveAppId = process.env.SECURE_APP_ID || 'default-app-id';
         const reference = `BIO-PRO-${Date.now()}-${userId.substring(0, 8)}`;
 
-        // --- Step 1: Create Customer ---
-        const customerResponse = await fetch(`${FLUTTERWAVE_BASE_URL}/customers`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${authToken}`,
-                'Content-Type': 'application/json',
-                'X-Idempotency-Key': `cust-${userId}-${Date.now()}`
-            },
-            body: JSON.stringify({
-                email: decodedToken.email || `${userId}@biogen.app`,
-                name: { first: "BioGen", last: "User" },
-            })
-        });
-        const customerData = await customerResponse.json();
-        if (!customerResponse.ok) {
-            console.error('Flutterwave Customer Creation Error:', customerData);
-            throw new Error(`Customer creation failed: ${customerData.message || JSON.stringify(customerData)}`);
-        }
-        const customerId = customerData.data.id;
-
-        // --- Step 2: Create Payment Method ---
-        const paymentMethodPayload = {
-            type: paymentDetails.type,
-            ...(paymentDetails.type === 'card' && { card: paymentDetails.card }),
-            ...(paymentDetails.type === 'ussd' && { ussd: paymentDetails.ussd }),
-        };
-        const pmResponse = await fetch(`${FLUTTERWAVE_BASE_URL}/payment-methods`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${authToken}`,
-                'Content-Type': 'application/json',
-                'X-Idempotency-Key': `pm-${reference}`
-            },
-            body: JSON.stringify(paymentMethodPayload)
-        });
-        const pmData = await pmResponse.json();
-        if (!pmResponse.ok) {
-            console.error('Flutterwave Payment Method Error:', pmData);
-            throw new Error(`Payment method creation failed: ${pmData.message || JSON.stringify(pmData)}`);
-        }
-        const paymentMethodId = pmData.data.id;
-
-        // --- Step 3: Create Charge ---
+        // --- Use Orchestrator Flow: Combine Customer, Payment Method, and Charge in one request ---
         const chargePayload = {
             reference: reference,
             amount: process.env.FLUTTERWAVE_AMOUNT || '2.99',
             currency: process.env.FLUTTERWAVE_CURRENCY || 'USD',
-            customer_id: customerId,
-            payment_method_id: paymentMethodId,
             redirect_url: `${req.headers.origin}?payment=success&tx_ref=${reference}`,
+            customer: {
+                email: decodedToken.email || `${userId}@biogen.app`,
+                name: { first: "BioGen", last: "User" },
+            },
+            payment_method: {
+                type: paymentDetails.type,
+                ...(paymentDetails.type === 'card' && { card: paymentDetails.card }),
+                ...(paymentDetails.type === 'ussd' && { ussd: paymentDetails.ussd }),
+            },
             meta: {
                 consumer_id: userId,
                 consumer_app: effectiveAppId,
             }
         };
 
-        const chargeResponse = await fetch(`${FLUTTERWAVE_BASE_URL}/charges`, {
+        const chargeResponse = await fetch(`${FLUTTERWAVE_BASE_URL}/orchestration/direct-charges`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${authToken}`,
@@ -155,13 +120,15 @@ module.exports = async (req, res) => {
             },
             body: JSON.stringify(chargePayload)
         });
+
         const chargeData = await chargeResponse.json();
+        
         if (!chargeResponse.ok) {
-            console.error('Flutterwave Charge Creation Error:', chargeData);
-            throw new Error(`Charge creation failed: ${chargeData.message || JSON.stringify(chargeData)}`);
+            console.error('Flutterwave Orchestration Error:', chargeData);
+            throw new Error(`Payment initiation failed: ${chargeData.message || JSON.stringify(chargeData)}`);
         }
 
-        // --- Step 4: Return Next Action ---
+        // Return the next action required from the user
         res.status(200).json({ next_action: chargeData.data.next_action });
 
     } catch (error) {
