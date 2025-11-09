@@ -22,6 +22,10 @@
             color: #10b981; /* Green color for enabled pro text */
             font-weight: 600;
         }
+        /* Styles for the payment modal */
+        #payment-modal input, #payment-modal select {
+            background-color: #f9fafb;
+        }
     </style>
 </head>
 <body>
@@ -97,13 +101,9 @@
                     Generate 5 Bio Options
                 </button>
 
-                <!-- UPDATED: Monetization Pitch Area with FWPGW Call -->
+                <!-- Monetization Pitch Area -->
                 <div id="pro-pitch-area" class="text-center pt-4 border-t border-gray-100 mt-6">
-                    <!-- This content will be dynamically replaced if user is Pro -->
-                    <p class="text-sm text-gray-500">Unlock longer bios, platform targeting, and unlimited access!</p>
-                    <button id="unlock-pro-button" class="mt-2 text-base bg-yellow-500 text-yellow-900 font-bold py-2 px-6 rounded-full hover:bg-yellow-600 transition duration-150">
-                        Unlock Pro ($2.99 One-Time)
-                    </button>
+                    <!-- This content will be dynamically replaced -->
                 </div>
             </div>
 
@@ -123,16 +123,79 @@
                     History loading...
                 </div>
             </div>
+        </div>
+    </div>
+    
+    <!-- NEW: Payment Modal -->
+    <div id="payment-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-xl p-6 md:p-8 w-full max-w-md relative card">
+            <button id="close-modal-btn" class="absolute top-3 right-4 text-2xl text-gray-400 hover:text-gray-800">&times;</button>
+            <h2 class="text-2xl font-bold text-center mb-2">Unlock Pro Access</h2>
+            <p class="text-center text-gray-600 mb-6 font-semibold text-lg">$2.99 <span class="font-normal">One-Time Payment</span></p>
 
-            <!-- Message Box for Alerts -->
-            <div id="message-box" class="fixed bottom-4 right-4 p-4 rounded-lg shadow-lg text-white transition-opacity duration-300 opacity-0 pointer-events-none"></div>
+            <!-- Payment Method Selector -->
+            <div>
+                <label for="payment-method-select" class="block text-sm font-medium text-gray-700 mb-2">Select Payment Method</label>
+                <select id="payment-method-select" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="card" selected>Credit/Debit Card</option>
+                    <option value="ussd">USSD (NGN Only)</option>
+                </select>
+            </div>
 
+            <!-- Card Payment Form -->
+            <div id="card-form" class="mt-4 space-y-4">
+                 <div>
+                    <label for="card-number" class="block text-sm font-medium text-gray-700">Card Number</label>
+                    <input type="text" id="card-number" placeholder="0000 0000 0000 0000" class="w-full p-3 border border-gray-300 rounded-lg mt-1">
+                </div>
+                <div class="flex space-x-4">
+                    <div class="flex-1">
+                        <label for="card-expiry" class="block text-sm font-medium text-gray-700">Expiry (MM/YY)</label>
+                        <input type="text" id="card-expiry" placeholder="MM/YY" class="w-full p-3 border border-gray-300 rounded-lg mt-1">
+                    </div>
+                    <div class="flex-1">
+                        <label for="card-cvv" class="block text-sm font-medium text-gray-700">CVV</label>
+                        <input type="text" id="card-cvv" placeholder="123" class="w-full p-3 border border-gray-300 rounded-lg mt-1">
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500 !mt-2">For security, card details are sent directly to the payment processor and never touch our servers. A Flutterwave client-side library would be used here in a real application to encrypt details before submission.</p>
+            </div>
+
+            <!-- USSD Payment Form -->
+            <div id="ussd-form" class="mt-4 space-y-4 hidden">
+                <div>
+                    <label for="ussd-bank-select" class="block text-sm font-medium text-gray-700">Select Your Bank</label>
+                    <select id="ussd-bank-select" class="w-full p-3 border border-gray-300 rounded-lg mt-1">
+                        <option>Loading banks...</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Authorization Step (e.g. for OTP) -->
+            <div id="auth-form" class="mt-4 space-y-4 hidden">
+               <div>
+                    <label for="auth-otp" class="block text-sm font-medium text-gray-700">Enter OTP</label>
+                    <input type="text" id="auth-otp" placeholder="Enter code sent to your device" class="w-full p-3 border border-gray-300 rounded-lg mt-1">
+                </div>
+            </div>
+
+            <!-- Payment Instructions -->
+            <div id="payment-instructions" class="mt-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-indigo-800 text-sm hidden text-center">
+            </div>
+
+            <button id="pay-now-button" class="mt-6 w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-indigo-700 transition duration-150 ease-in-out disabled:opacity-50 flex items-center justify-center">
+                 <svg id="pay-loading-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                Pay Now
+            </button>
+            <p class="text-xs text-gray-400 text-center mt-3">Powered by <span class="font-semibold">Flutterwave</span></p>
         </div>
     </div>
 
+    <!-- Message Box for Alerts -->
+    <div id="message-box" class="fixed bottom-4 right-4 p-4 rounded-lg shadow-lg text-white transition-opacity duration-300 opacity-0 pointer-events-none z-50"></div>
+
     <script type="module">
         // 🚨 IMPORTANT: Replace the placeholder values below with your Firebase client configuration.
-        // This public configuration is safe to include in your client-side code.
         const FIREBASE_CLIENT_CONFIG = {
             apiKey: "AIzaSyAAqqENNvQzrUdMFcjEJsG2iygrQWNWS0A",
             authDomain: "pro-tools-web-app.firebaseapp.com",
@@ -143,11 +206,8 @@
             measurementId: "G-6LYSEGKE8V"
         };
 
-        // Firebase Global Variables (Canvas fallbacks)
         const canvasFirebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
         const isCanvasConfigValid = canvasFirebaseConfig && Object.keys(canvasFirebaseConfig).length > 0 && canvasFirebaseConfig.projectId;
-        
-        // Use Canvas config if valid, otherwise use the client config defined above.
         const firebaseConfig = isCanvasConfigValid ? canvasFirebaseConfig : FIREBASE_CLIENT_CONFIG;
         
         const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId || 'default-app-id';
@@ -160,11 +220,12 @@
         // --- Global State ---
         let app, db, auth, userId = null;
         let isAuthReady = false;
-        let isPro = false; // NEW: Track Pro status
+        let isPro = false;
 
         // --- DOM Elements ---
         const API_PROXY_URL = '/api/generate-bio';
-        const CREATE_CHECKOUT_URL = '/api/create-checkout'; // NEW
+        const INITIATE_PAYMENT_URL = '/api/initiate-payment';
+        const GET_BANKS_URL = '/api/get-banks';
         const generateButton = document.getElementById('generate-button');
         const loadingSpinner = document.getElementById('loading-spinner');
         const outputArea = document.getElementById('output-area');
@@ -179,7 +240,18 @@
         const copyMessage = document.getElementById('copy-message');
         const historyList = document.getElementById('history-list');
         const proPitchArea = document.getElementById('pro-pitch-area');
-        let unlockProButton = null; // Defined here, attached/re-attached later
+        
+        // Modal elements
+        const paymentModal = document.getElementById('payment-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const paymentMethodSelect = document.getElementById('payment-method-select');
+        const cardForm = document.getElementById('card-form');
+        const ussdForm = document.getElementById('ussd-form');
+        const ussdBankSelect = document.getElementById('ussd-bank-select');
+        const payNowButton = document.getElementById('pay-now-button');
+        const payLoadingSpinner = document.getElementById('pay-loading-spinner');
+        const paymentInstructions = document.getElementById('payment-instructions');
+
 
         // --- Utility Functions ---
 
@@ -196,36 +268,25 @@
             }, 3000);
         }
 
-        // Add error handling utility
-        const handleError = (error, action) => {
-            console.error(`Error during ${action}:`, error);
-            const message = error.response?.data?.error || error.message || `Failed to ${action}`;
-            showMessage(message, true);
-        };
-
-        // Improve retries with exponential backoff
-        async function fetchWithRetry(url, options, maxRetries = 5) {
+        async function fetchWithRetry(url, options, maxRetries = 3) {
             let lastError;
             for (let i = 0; i < maxRetries; i++) {
                 try {
                     const response = await fetch(url, options);
                     if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
+                        const errorData = await response.json().catch(() => ({error: `HTTP error! status: ${response.status}`}));
+                        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
                     }
                     return response;
                 } catch (error) {
                     lastError = error;
                     if (i === maxRetries - 1) break;
-                    const delay = Math.min(1000 * Math.pow(2, i), 10000);
+                    const delay = Math.min(1000 * Math.pow(2, i), 8000);
                     await new Promise(resolve => setTimeout(resolve, delay));
                 }
             }
             throw lastError;
         }
-
-        // Add rate limiting for generate button
-        let lastGenerateTime = 0;
-        const GENERATE_COOLDOWN = 2000; // 2 seconds
 
         // --- Firebase & State Management ---
 
@@ -235,7 +296,6 @@
             auth = getAuth(app);
             document.getElementById('user-info').textContent = 'Authenticating...';
 
-            // Ensure persistence is set BEFORE signing in
             (async () => {
                 try {
                     await setPersistence(auth, browserSessionPersistence);
@@ -245,9 +305,9 @@
                         await signInAnonymously(auth);
                     }
                 } catch (error) {
-                    console.error("Auth Persistence/Sign-in Error:", error);
+                    console.error("Auth Error:", error);
                     showMessage("Error establishing user session.", true);
-                    isAuthReady = true; // Still mark as ready to prevent infinite block
+                    isAuthReady = true;
                 }
             })();
 
@@ -255,29 +315,20 @@
                 if (user) {
                     userId = user.uid;
                     isAuthReady = true;
-                    document.getElementById('user-info').textContent = `User ID: ${userId}`;
+                    document.getElementById('user-info').textContent = `User ID: ${userId.substring(0,8)}...`;
                     loadHistory(); 
-                    listenToProStatus(); // NEW: Start listening for Pro status
+                    listenToProStatus();
                 } else {
-                    // This handles anonymous sign-in failure, which should be caught above, 
-                    // but serves as a final fail-safe.
                     isAuthReady = true;
                 }
             });
         } else {
-            document.getElementById('user-info').textContent = 'Firebase is not configured! Check the script block.';
+            document.getElementById('user-info').textContent = 'Firebase is not configured!';
             isAuthReady = true;
-        }
-
-        function getHistoryCollectionRef() {
-            if (!db || !userId) return null;
-            const path = `artifacts/${appId}/users/${userId}/bios`;
-            return collection(db, path);
         }
 
         function getStatusDocRef() {
             if (!db || !userId) return null;
-            // Document path: artifacts/{appId}/users/{userId}/profile/status
             return doc(db, `artifacts/${appId}/users/${userId}/profile/status`);
         }
 
@@ -286,224 +337,218 @@
             if (!statusDocRef) return;
 
             onSnapshot(statusDocRef, (doc) => {
-                const data = doc.data();
-                const newProStatus = data && data.isPro === true;
-
+                const newProStatus = doc.exists() && doc.data().isPro === true;
                 if (newProStatus !== isPro) {
                     isPro = newProStatus;
                     updateProUI();
-                    // Show brief notification when Pro becomes active
-                    if (isPro) {
-                        showMessage("Pro Access Activated!", false);
-                    }
+                    if (isPro) showMessage("Pro Access Activated!", false);
                 }
-            }, (error) => {
-                console.error("Error listening to Pro status:", error);
-            });
+            }, (error) => console.error("Error listening to Pro status:", error));
         }
         
         function updateProUI() {
-            const proFeatures = {
-                platform: ['LinkedIn', 'X/Twitter', 'Instagram', 'TikTok', 'Upwork', 'Fiverr', 'Freelancer', 'YouTube'],
-                length: ['medium', 'fixed-long', 'custom']
-            };
-
-            // Reset selections if needed
-            if (!isPro) {
-                if (proFeatures.length.includes(lengthSelect.value)) {
-                    lengthSelect.value = 'short';
-                }
-                if (proFeatures.platform.includes(platformSelect.value)) {
-                    platformSelect.value = 'General';
-                }
-            }
-
             // Update Pro pitch area
             if (isPro) {
-                proPitchArea.innerHTML = '<p class="text-lg font-bold text-green-600">🎉 PRO ACCESS GRANTED!</p><p class="text-sm text-gray-500">All features are now available below.</p>';
+                proPitchArea.innerHTML = '<p class="text-lg font-bold text-green-600">🎉 PRO ACCESS GRANTED!</p><p class="text-sm text-gray-500">All features are now available.</p>';
             } else {
                 proPitchArea.innerHTML = `
-                    <p class="text-sm text-gray-500">Unlock longer bios, platform targeting, and unlimited access!</p>
-                    <button id="unlock-pro-button-active" class="mt-2 text-base bg-yellow-500 text-yellow-900 font-bold py-2 px-6 rounded-full hover:bg-yellow-600 transition duration-150">
+                    <p class="text-sm text-gray-500">Unlock longer bios & platform targeting!</p>
+                    <button id="unlock-pro-button" class="mt-2 text-base bg-yellow-500 text-yellow-900 font-bold py-2 px-6 rounded-full hover:bg-yellow-600 transition duration-150">
                         Unlock Pro ($2.99 One-Time)
                     </button>
                 `;
-                // Re-attach event listener
-                const newUnlockButton = document.getElementById('unlock-pro-button-active');
-                if(newUnlockButton) {
-                    newUnlockButton.addEventListener('click', handleProUnlock);
-                    unlockProButton = newUnlockButton;
-                }
+                document.getElementById('unlock-pro-button')?.addEventListener('click', openPaymentModal);
             }
 
             // Update dropdowns
-            const proElements = document.querySelectorAll('[data-pro="true"]');
-            
-            proElements.forEach(option => {
+            document.querySelectorAll('[data-pro="true"]').forEach(option => {
+                option.disabled = !isPro;
                 if (isPro) {
-                    option.disabled = false;
                     option.innerHTML = option.innerHTML.replace('(<span class="text-yellow-600">👑 Pro</span>)', '(<span class="pro-enabled">✅ Pro</span>)');
                 } else {
-                    option.disabled = true;
-                    // Reset to show Pro text if it was previously enabled
-                    if (!option.innerHTML.includes('👑 Pro')) {
-                         const baseText = option.value.charAt(0).toUpperCase() + option.value.slice(1).replace('-', ' ');
+                     if (!option.innerHTML.includes('👑 Pro')) {
+                         const baseText = option.value.charAt(0).toUpperCase() + option.value.slice(1).replace(/-/g, ' ');
                          option.innerHTML = `${baseText} (<span class="text-yellow-600">👑 Pro</span>)`;
                     }
                 }
             });
-
-            // Ensure a free option is selected if Pro features become disabled
-            if (!isPro && lengthSelect.value !== 'short') {
-                lengthSelect.value = 'short';
+            
+            // Reset selections if Pro becomes disabled
+            if (!isPro) {
+                if (document.querySelector('#length [data-pro="true"]:checked')) lengthSelect.value = 'short';
+                if (document.querySelector('#platform [data-pro="true"]:checked')) platformSelect.value = 'General';
                 customLengthGroup.classList.add('hidden');
-            }
-            if (!isPro && platformSelect.value !== 'General') {
-                 platformSelect.value = 'General';
             }
         }
 
+        // --- Payment Modal Logic ---
 
-        // --- FWPGW Checkout Logic (NEW) ---
+        async function fetchBanks() {
+            try {
+                const response = await fetch(GET_BANKS_URL);
+                if (!response.ok) throw new Error('Failed to fetch banks');
+                const banks = await response.json();
+                ussdBankSelect.innerHTML = '<option value="">-- Select your bank --</option>';
+                banks.forEach(bank => {
+                    const option = document.createElement('option');
+                    option.value = bank.code;
+                    option.textContent = bank.name;
+                    ussdBankSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error fetching banks:', error);
+                ussdBankSelect.innerHTML = '<option>Could not load banks</option>';
+            }
+        }
 
-        async function handleProUnlock() {
-            if (!isAuthReady || !userId) {
-                showMessage("Authentication not ready. Please wait a moment.", true);
+        function openPaymentModal() {
+            paymentModal.classList.remove('hidden');
+            paymentMethodSelect.value = 'card'; // Reset to default
+            cardForm.classList.remove('hidden');
+            ussdForm.classList.add('hidden');
+            paymentInstructions.classList.add('hidden');
+        }
+
+        function closeModal() {
+            paymentModal.classList.add('hidden');
+        }
+
+        paymentMethodSelect.addEventListener('change', () => {
+            const isCard = paymentMethodSelect.value === 'card';
+            cardForm.classList.toggle('hidden', !isCard);
+            ussdForm.classList.toggle('hidden', isCard);
+            if (!isCard && ussdBankSelect.options.length <= 1) {
+                fetchBanks();
+            }
+        });
+        
+        async function handlePayment() {
+            if (!isAuthReady || !userId || !auth.currentUser) {
+                showMessage("Authentication not ready. Please wait.", true);
                 return;
             }
             
-            const button = unlockProButton || document.getElementById('unlock-pro-button-active');
-            if(!button) return;
-            
-            button.disabled = true;
-            button.textContent = 'Redirecting to Checkout...';
+            payNowButton.disabled = true;
+            payLoadingSpinner.classList.remove('hidden');
+            payNowButton.lastChild.textContent = 'Processing...';
 
+            const paymentMethod = paymentMethodSelect.value;
+            let paymentDetails = { type: paymentMethod };
+
+            if (paymentMethod === 'card') {
+                // IMPORTANT: In a real app, you would use Flutterwave's JS SDK
+                // to securely tokenize card details, not handle them directly.
+                // We are sending placeholder values as the docs don't cover client-side encryption.
+                paymentDetails.card = {
+                    number: document.getElementById('card-number').value,
+                    expiry_month: document.getElementById('card-expiry').value.split('/')[0]?.trim(),
+                    expiry_year: document.getElementById('card-expiry').value.split('/')[1]?.trim(),
+                    cvv: document.getElementById('card-cvv').value,
+                    // These would be generated by a client-side encryption library
+                    nonce: `nonce-${Date.now()}`,
+                    encrypted_card_number: "mock-encrypted-data",
+                    encrypted_expiry_month: "mock-encrypted-data",
+                    encrypted_expiry_year: "mock-encrypted-data",
+                    encrypted_cvv: "mock-encrypted-data",
+                };
+            } else if (paymentMethod === 'ussd') {
+                const bankCode = ussdBankSelect.value;
+                if (!bankCode) {
+                    showMessage('Please select a bank for USSD payment.', true);
+                    resetPayButton();
+                    return;
+                }
+                paymentDetails.ussd = { account_bank: bankCode };
+            }
+            
             try {
-                const response = await fetchWithRetry(CREATE_CHECKOUT_URL, {
+                const token = await auth.currentUser.getIdToken();
+                const response = await fetchWithRetry(INITIATE_PAYMENT_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        userId: userId,
-                        originUrl: window.location.origin + window.location.pathname // Pass current URL for success/cancel
-                    }) 
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ paymentDetails, userId })
                 });
 
-                if (!response.ok) {
-                    const errorJson = await response.json();
-                    throw new Error(errorJson.error || 'Failed to create checkout session.');
-                }
-
                 const result = await response.json();
-                
-                // Redirect user to the FWPGW Checkout page
-                window.location.href = result.url;
+                handleNextAction(result.next_action);
 
             } catch (error) {
-                console.error("Flutterwave Checkout Error:", error);
-                showMessage(`Error initiating payment: ${error.message}`, true);
-                button.disabled = false;
-                button.textContent = 'Unlock Pro ($2.99 One-Time)';
+                console.error("Payment Initiation Error:", error);
+                showMessage(`Payment error: ${error.message}`, true);
+                resetPayButton();
             }
         }
-        
-        // Handle post-payment URL parameters
-        window.onload = () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('payment') === 'success') {
-                showMessage("Payment successful! Pro status will update shortly.", false);
-                // Clean the URL
-                history.replaceState(null, '', window.location.pathname);
-            } else if (urlParams.get('payment') === 'cancelled') {
-                showMessage("Payment cancelled. You can try again anytime.", true);
-                // Clean the URL
-                history.replaceState(null, '', window.location.pathname);
+
+        function handleNextAction(action) {
+            if (!action) {
+                showMessage('Payment failed: No action returned from server.', true);
+                resetPayButton();
+                return;
             }
-            
-             // Pre-fill fields for a quick test
-             nicheInput.value = "Freelance React Developer";
-             goalsInput.value = "Tailwind, Quick Turnaround";
-        };
 
+            if (action.type === 'redirect_url') {
+                window.location.href = action.redirect_url.url;
+            } else if (action.type === 'payment_instruction') {
+                paymentInstructions.textContent = action.payment_instruction.note;
+                paymentInstructions.classList.remove('hidden');
+                payNowButton.classList.add('hidden'); // Hide pay button
+                payLoadingSpinner.classList.add('hidden');
+            } else {
+                showMessage(`Unhandled payment step: ${action.type}. Please follow any instructions from your bank.`, false);
+                resetPayButton();
+            }
+        }
 
-        // --- Generation & History Logic (Slightly modified feature gating) ---
+        function resetPayButton() {
+            payNowButton.disabled = false;
+            payLoadingSpinner.classList.add('hidden');
+            payNowButton.lastChild.textContent = 'Pay Now';
+        }
+
+        // --- Generation & History Logic ---
+
+        function getHistoryCollectionRef() {
+            if (!db || !userId) return null;
+            return collection(db, `artifacts/${appId}/users/${userId}/bios`);
+        }
 
         async function generateContent(niche, tone, goals, length, customLength, platform, userId) {
-            if(!auth || !auth.currentUser) {
-                throw new Error("Authentication failed. Please refresh and try again.");
-            }
-            
-            // Get the user's ID token for secure API call
+            if(!auth || !auth.currentUser) throw new Error("Authentication failed.");
             const token = await auth.currentUser.getIdToken();
 
             const response = await fetchWithRetry(API_PROXY_URL, {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    // Pass the secure ID token
-                    'Authorization': `Bearer ${token}`
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ niche, tone, goals, length, customLength, platform, userId, appId }) 
             });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                let errorMessage;
-                try {
-                    const errorJson = JSON.parse(errorText);
-                    errorMessage = errorJson.error || `Server responded with status: ${response.status}`;
-                } catch {
-                    errorMessage = `Server responded with status: ${response.status} and message: ${errorText.substring(0, 100)}`;
-                }
-                throw new Error(errorMessage);
-            }
-
             const result = await response.json();
-            
-            if (!result.text) {
-                throw new Error("Proxy received empty response from generator.");
-            }
-            
+            if (!result.text) throw new Error("Proxy received empty response from generator.");
             return result.text;
         }
 
         async function saveBio(bio, niche, tone, length, platform, customLength = null) {
             const historyRef = getHistoryCollectionRef();
             if (!historyRef) return;
-
             try {
-                await addDoc(historyRef, {
-                    bio: bio,
-                    niche: niche,
-                    tone: tone,
-                    length: length,
-                    platform: platform,
-                    ...(length === 'custom' && customLength && { customLength: customLength }),
-                    timestamp: serverTimestamp(),
-                });
+                await addDoc(historyRef, { bio, niche, tone, length, platform, ...(length === 'custom' && customLength && { customLength }), timestamp: serverTimestamp() });
                 showMessage("Bio saved to history!");
             } catch (e) {
                 console.error("Error saving document: ", e);
-                showMessage("Could not save history (Firestore error).", true);
+                showMessage("Could not save history.", true);
             }
         }
         
         function loadHistory() {
             const historyRef = getHistoryCollectionRef();
-            if (!historyRef) {
-                historyList.textContent = 'History unavailable.';
-                return;
-            }
-
+            if (!historyRef) { historyList.textContent = 'History unavailable.'; return; }
             const q = query(historyRef, limit(5));
-
             onSnapshot(q, (snapshot) => {
                 const bios = [];
-                snapshot.forEach((doc) => {
-                    bios.push({ id: doc.id, ...doc.data() });
-                });
-                
+                snapshot.forEach((doc) => bios.push({ id: doc.id, ...doc.data() }));
                 bios.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-
                 renderHistory(bios);
             }, (error) => {
                 console.error("Error loading history:", error);
@@ -513,15 +558,11 @@
         
         function renderHistory(bios) {
             if (bios.length === 0) {
-                historyList.innerHTML = '<p class="text-gray-500 italic">No bios saved yet. Generate and copy one to start your history!</p>';
+                historyList.innerHTML = '<p class="text-gray-500 italic">No bios saved yet.</p>';
                 return;
             }
-
             historyList.innerHTML = bios.map(item => {
-                const displayLength = item.length === 'custom' && item.customLength 
-                    ? `Custom (${item.customLength} max)` 
-                    : item.length;
-                    
+                const displayLength = item.length === 'custom' && item.customLength ? `Custom (${item.customLength} max)` : item.length;
                 const safeBio = item.bio ? item.bio.replace(/'/g, "\\'") : '';
                 return `
                     <div class="p-3 my-2 bg-white rounded-lg border border-gray-100 shadow-sm cursor-pointer hover:border-indigo-400 transition" onclick="copyToClipboard('${safeBio}', true)">
@@ -532,160 +573,77 @@
             }).join('');
         }
 
-        // Update copyToClipboard to accept history flag
         function copyToClipboard(text, isHistory = false) {
-            const tempInput = document.createElement('textarea');
-            tempInput.value = text;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            
-            let success = false;
-            try {
-                success = document.execCommand('copy');
-            } catch (err) {
-                // console.error('Copy command failed:', err);
-            }
-            
-            document.body.removeChild(tempInput);
-
-            if (success) {
+            navigator.clipboard.writeText(text).then(() => {
                 if (!isHistory) {
                     copyMessage.textContent = 'Bio Copied to Clipboard!';
-                    copyMessage.classList.remove('hidden');
+                    copyMessage.classList.remove('hidden', 'bg-red-500');
                     copyMessage.classList.add('bg-green-600');
                     setTimeout(() => { copyMessage.classList.add('hidden'); }, 2000);
                 } else {
-                    // Smaller feedback for history copy
                     showMessage("Bio copied!", false);
                 }
-            } else {
-                showMessage("Could not copy automatically. Please select and copy the text manually.", true);
-            }
+            }).catch(err => {
+                 showMessage("Could not copy automatically.", true);
+            });
         }
 
         function renderResults(resultText, customLength, platform) {
-            // 1. Unhide the output area and clear previous results
             outputArea.classList.remove('hidden');
             bioResults.innerHTML = ''; 
-
-            // 2. Parse the bios using a regex to split by number and period
             const bios = resultText.split(/\d+\.\s?/).filter(b => b.trim().length > 0);
-
-            // 3. Get current form values for the save function's context
             const niche = nicheInput.value.trim();
             const tone = toneSelect.value;
             const length = lengthSelect.value;
 
-            // 4. Render each bio into a card
             bios.forEach(bio => {
                 const bioText = bio.trim();
-                const charCount = bioText.length;
-
                 const bioCard = document.createElement('div');
-                bioCard.className = 'p-4 bg-gray-50 rounded-lg border border-gray-200 transition-all hover:shadow-md';
-                
+                bioCard.className = 'p-4 bg-gray-50 rounded-lg border border-gray-200';
                 bioCard.innerHTML = `
                     <p class="text-gray-800 mb-3">${bioText}</p>
                     <div class="flex items-center justify-between text-xs text-gray-500">
-                        <span>${charCount} characters</span>
+                        <span>${bioText.length} characters</span>
                         <div class="flex items-center space-x-3">
-                            <button class="copy-btn font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">Copy</button>
-                            <button class="save-btn font-semibold text-green-600 hover:text-green-800 transition-colors">Save</button>
+                            <button class="copy-btn font-semibold text-indigo-600 hover:text-indigo-800">Copy</button>
+                            <button class="save-btn font-semibold text-green-600 hover:text-green-800">Save</button>
                         </div>
                     </div>
                 `;
-
-                // 5. Attach event listeners to the new buttons
-                const copyBtn = bioCard.querySelector('.copy-btn');
-                const saveBtn = bioCard.querySelector('.save-btn');
-
-                copyBtn.addEventListener('click', () => {
-                    copyToClipboard(bioText, false); // 'false' indicates it's not from the history list
-                });
-
-                saveBtn.addEventListener('click', (e) => {
+                bioCard.querySelector('.copy-btn').addEventListener('click', () => copyToClipboard(bioText));
+                bioCard.querySelector('.save-btn').addEventListener('click', (e) => {
                     e.target.disabled = true;
                     e.target.textContent = 'Saved!';
                     saveBio(bioText, niche, tone, length, platform, customLength);
                 });
-
                 bioResults.appendChild(bioCard);
-            });
+});
         }
 
-
-        // --- Generation Handler (with rate limiting) ---
         async function handleGeneration() {
-            // Add rate limiting
-            const now = Date.now();
-            if (now - lastGenerateTime < GENERATE_COOLDOWN) {
-                showMessage("Please wait a moment before generating again", true);
-                return;
-            }
-            lastGenerateTime = now;
-
-            if (!isAuthReady) {
-                showMessage("Session is still initializing. Please wait a moment.", true);
-                return;
-            }
-            
-            // CRITICAL: Ensure we have userId for the server check
-            if (!userId || !db) {
-                showMessage("Authentication is missing. Cannot start generation. (Firebase client config not set?)", true);
-                return;
-            }
-
+            if (!isAuthReady || !userId) { showMessage("Session not ready.", true); return; }
             const niche = nicheInput.value.trim();
-            const tone = toneSelect.value;
             const length = lengthSelect.value;
-            const platform = platformSelect.value; 
-            const goals = goalsInput.value.trim();
-            
-            let customLength = null;
+            const platform = platformSelect.value;
+            if (!niche) { showMessage("Please enter your role or niche.", true); return; }
 
-            // --- Feature Gate Logic (Client-side UX check) ---
             const isProFeatureUsed = length !== 'short' || platform !== 'General';
-            
             if (isProFeatureUsed && !isPro) {
-                showMessage(`The '${length.toUpperCase().replace('-', ' ')}' length or '${platform}' platform requires Pro Mode. Unlock Pro to use!`, true);
+                showMessage(`This feature requires Pro. Unlock Pro to use!`, true);
                 return;
             }
-            // --- End Feature Gate Logic ---
-
-            // Validate custom length only if 'custom' is selected and Pro is enabled
-            if (length === 'custom' && isPro) {
-                customLength = parseInt(customLengthInput.value, 10);
-                if (isNaN(customLength) || customLength < 300 || customLength > 1000) {
-                    showMessage("Please set a character limit between 300 and 1000 for the Custom bio.", true);
-                    return;
-                }
-            }
-
-
-            if (!niche) {
-                showMessage("Please enter your role or niche to generate a bio.", true);
-                return;
-            }
-
-            // --- UI Updates: Start Loading ---
+            
             generateButton.disabled = true;
             loadingSpinner.classList.remove('hidden');
             generateButton.lastChild.textContent = 'Generating...';
             outputArea.classList.add('hidden');
-            copyMessage.classList.add('hidden');
-
+            
             try {
-                // Generate content (includes Authorization header)
-                const result = await generateContent(niche, tone, goals, length, customLength, platform, userId); 
+                const customLength = length === 'custom' ? parseInt(customLengthInput.value, 10) : null;
+                const result = await generateContent(niche, toneSelect.value, goalsInput.value.trim(), length, customLength, platform, userId); 
                 renderResults(result, customLength, platform); 
             } catch (error) {
-                console.error("Generation error:", error);
-                // Check for 403 error specifically from the server-side gate
-                if (error.message && error.message.includes('403')) {
-                    showMessage('Access Denied: The server confirmed this is a Pro feature.', true);
-                } else {
-                     showMessage(`Error: ${error.message || 'Failed to generate bio.'}`, true);
-                }
+                showMessage(`Error: ${error.message || 'Failed to generate bio.'}`, true);
             } finally {
                 generateButton.disabled = false;
                 loadingSpinner.classList.add('hidden');
@@ -693,27 +651,35 @@
             }
         }
 
-        // Event listener to show/hide the custom length input
+        // --- Event Listeners ---
         lengthSelect.addEventListener('change', () => {
-            // Check if isPro is true before showing custom length, even if selected
-            const shouldShow = lengthSelect.value === 'custom' && isPro;
-            customLengthGroup.classList.toggle('hidden', !shouldShow);
+            customLengthGroup.classList.toggle('hidden', lengthSelect.value !== 'custom' || !isPro);
         });
-
-        // Attach event listeners
-        generateButton.addEventListener('click', handleGeneration);
-        // Initial setup for the Unlock button (will be re-attached dynamically by updateProUI)
+        
+        // Initial setup for buttons that might be re-rendered
         document.addEventListener('DOMContentLoaded', () => {
-            const initialUnlockButton = document.getElementById('unlock-pro-button');
-            if(initialUnlockButton) {
-                initialUnlockButton.addEventListener('click', handleProUnlock);
-                unlockProButton = initialUnlockButton;
+             updateProUI(); // Will attach the initial unlock pro button listener
+             closeModalBtn.addEventListener('click', closeModal);
+             payNowButton.addEventListener('click', handlePayment);
+             generateButton.addEventListener('click', handleGeneration);
+
+             // Pre-fill fields for a quick test
+             nicheInput.value = "Freelance React Developer";
+             goalsInput.value = "Tailwind, Quick Turnaround";
+        });
+        
+        // Handle post-payment URL parameters
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('payment') === 'success') {
+                showMessage("Payment successful! Pro status will update shortly.", false);
+                history.replaceState(null, '', window.location.pathname);
+            } else if (urlParams.get('payment') === 'cancelled') {
+                showMessage("Payment cancelled. You can try again anytime.", true);
+                history.replaceState(null, '', window.location.pathname);
             }
         });
-
-
-        // Run initial UI update and make global function available
-        updateProUI();
+        
         window.copyToClipboard = copyToClipboard; 
     </script>
 </body>

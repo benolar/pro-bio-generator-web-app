@@ -26,6 +26,11 @@ const db = admin.firestore();
 
 // --- 2. CONFIGURATION & UTILITY FUNCTIONS ---
 
+// Use environment variable for base URL, defaulting to sandbox for safety
+const FLUTTERWAVE_BASE_URL = process.env.FLUTTERWAVE_ENV === 'live'
+    ? 'https://f4bexperience.flutterwave.com'
+    : 'https://developersandbox-api.flutterwave.com';
+
 // Conditionally initialize Vercel KV client with custom env vars
 let kv;
 if (process.env.BGNRT_KV_REST_API_URL && process.env.BGNRT_KV_REST_API_TOKEN) {
@@ -175,7 +180,7 @@ async function verifyStoredTransactionAndRefresh(userId, appId) {
         if (!statusSnap.exists) return false;
 
         const statusData = statusSnap.data();
-        const fwTx = statusData?.fwTransactionId;
+        const fwTx = statusData?.fwTransactionId; // This should be the Charge ID
 
         const cacheMinutes = parseInt(process.env.PRO_VERIFY_CACHE_MIN, 10) || 10;
         const CACHE_TTL_MS = cacheMinutes * 60 * 1000;
@@ -206,7 +211,8 @@ async function verifyStoredTransactionAndRefresh(userId, appId) {
 
         // 4. CACHE MISS / EXPIRED: Get OAuth token and call Flutterwave verify endpoint
         const authToken = await getFlutterwaveAuthToken();
-        const verifyResp = await fetch(`https://api.flutterwave.com/v4/transactions/${fwTx}`, {
+        // UPDATED: Use v4 /charges endpoint
+        const verifyResp = await fetch(`${FLUTTERWAVE_BASE_URL}/charges/${fwTx}`, {
             headers: { 'Authorization': `Bearer ${authToken}` }
         });
 
@@ -219,10 +225,10 @@ async function verifyStoredTransactionAndRefresh(userId, appId) {
 
         const expectedAmount = parseFloat(process.env.FLUTTERWAVE_AMOUNT);
         const expectedCurrency = process.env.FLUTTERWAVE_CURRENCY || 'USD';
-
-        // Check verification success criteria
+        
+        // UPDATED: Check verification success criteria for v4
         const ok = verifyJson?.status === 'success'
-            && verifyJson.data?.status === 'successful'
+            && verifyJson.data?.status === 'succeeded' // Changed from 'successful'
             && parseFloat(verifyJson.data?.amount) === expectedAmount
             && (verifyJson.data?.currency || expectedCurrency) === expectedCurrency;
 

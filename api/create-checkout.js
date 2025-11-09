@@ -3,7 +3,13 @@
 
 const { createClient } = require('@vercel/kv');
 
-const FLUTTERWAVE_API_URL = 'https://api.flutterwave.com/v4/hosted-links';
+// Use environment variable for base URL, defaulting to sandbox for safety
+const FLUTTERWAVE_BASE_URL = process.env.FLUTTERWAVE_ENV === 'live'
+    ? 'https://f4bexperience.flutterwave.com'
+    : 'https://developersandbox-api.flutterwave.com';
+
+const FLUTTERWAVE_API_URL = `${FLUTTERWAVE_BASE_URL}/hosted-links`;
+
 
 // --- Vercel KV Initialization ---
 let kv;
@@ -162,15 +168,19 @@ module.exports = async (req, res) => {
             console.warn(`Using fallback app ID (default-app-id) for user ${userId} transaction ${tx_ref}`);
         }
         
+        // UPDATED payload for v4 compliance
         const payload = {
-            tx_ref: tx_ref,
+            reference: tx_ref, // Changed from tx_ref
             amount: AMOUNT,
             currency: CURRENCY,
             redirect_url: `${originUrl}?payment=success&tx_ref=${tx_ref}`,
             customer: {
                 email: "anonuser@biogen.com",
-                phonenumber: "0000000000",
-                name: userId, 
+                // Updated name to be an object per v4 spec
+                name: {
+                    first: userId,
+                    last: 'User'
+                }
             },
             meta: {
                 consumer_id: userId,
@@ -192,7 +202,7 @@ module.exports = async (req, res) => {
             headers: { 
                 'Authorization': `Bearer ${authToken}`,
                 'Content-Type': 'application/json',
-                'X-Idempotency-Key': payload.tx_ref,
+                'X-Idempotency-Key': payload.reference,
                 'X-Trace-Id': `trace-${Date.now()}-${userId.substring(0, 8)}`
             },
             body: JSON.stringify(payload)

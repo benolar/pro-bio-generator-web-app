@@ -2,6 +2,11 @@
 const admin = require('firebase-admin');
 const { createClient } = require('@vercel/kv');
 
+// Use environment variable for base URL, defaulting to sandbox for safety
+const FLUTTERWAVE_BASE_URL = process.env.FLUTTERWAVE_ENV === 'live'
+    ? 'https://f4bexperience.flutterwave.com'
+    : 'https://developersandbox-api.flutterwave.com';
+
 // --- Vercel KV Initialization ---
 let kv;
 if (process.env.BGNRT_KV_REST_API_URL && process.env.BGNRT_KV_REST_API_TOKEN) {
@@ -76,24 +81,23 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 // Local helper to update Firestore status
-async function updateProStatusInFirestore(userId, appId, transactionId) {
+async function updateProStatusInFirestore(userId, appId, chargeId) {
     if (!db) throw new Error('Firestore not initialized');
     const docRef = db.doc(`artifacts/${appId}/users/${userId}/profile/status`);
     await docRef.set({
         isPro: true,
         proActivatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        fwTransactionId: transactionId,
+        fwTransactionId: chargeId, // Store the canonical Charge ID
         lastVerifiedAt: admin.firestore.FieldValue.serverTimestamp() // Also mark as verified now
     }, { merge: true });
 }
 
 // Main handler (uses verifyTransaction flow)
 module.exports = async (req, res) => {
-    // We expect the transaction ID from the client-side redirect query parameters
-    const { tx_ref: txRef, transaction_id } = req.query; // Check both standard params
-    const transactionId = transaction_id || txRef;
+    // Client-side redirect sends tx_ref
+    const { tx_ref: txRef } = req.query;
     
-    if (!transactionId) return res.status(400).json({ error: 'transaction_id or tx_ref required' });
+    if (!txRef) return res.status(400).json({ error: 'tx_ref is required for verification' });
 
     // Check for necessary ENV keys
     const CLIENT_ID = process.env.FLUTTERWAVE_CLIENT_ID;
@@ -106,14 +110,17 @@ module.exports = async (req, res) => {
         // 1. Get OAuth token
         const authToken = await getFlutterwaveAuthToken();
 
-        // 2. Verify Transaction with Flutterwave
-        const verifyResp = await fetch(`https://api.flutterwave.com/v4/transactions/${transactionId}`, {
+        // 2. NEW: Verify Transaction by querying charges with the reference (txRef)
+        const verifyResp = await fetch(`${FLUTTERWAVE_BASE_URL}/charges?reference=${txRef}`, {
             headers: { Authorization: `Bearer ${authToken}` }
         });
         const data = await verifyResp.json();
 
+        // Find the charge from the list
+        const charge = data?.data?.[0];
+
         // 3. Check basic success status
-        if (data.status !== "success" || data.data?.status !== "successful") {
+        if (data.status !== "success" || !charge || charge.status !== "succeeded") {
             return res.status(400).json({ error: 'Transaction not successful or failed verification' });
         }
 
@@ -121,23 +128,23 @@ module.exports = async (req, res) => {
         const expectedAmount = parseFloat(process.env.FLUTTERWAVE_AMOUNT);
         const expectedCurrency = process.env.FLUTTERWAVE_CURRENCY || 'USD';
 
-        if (parseFloat(data.data.amount) !== expectedAmount || data.data.currency !== expectedCurrency) {
-            console.warn(`Security mismatch: Expected ${expectedCurrency} ${expectedAmount}, got ${data.data.currency} ${data.data.amount} for TX ${transactionId}`);
-            // Return 400 for security reasons: transaction details don't match product
+        if (parseFloat(charge.amount) !== expectedAmount || charge.currency !== expectedCurrency) {
+            console.warn(`Security mismatch: Expected ${expectedCurrency} ${expectedAmount}, got ${charge.currency} ${charge.amount} for TX_REF ${txRef}`);
             return res.status(400).json({ error: 'Transaction amount or currency mismatch' }); 
         }
 
         // 5. Extract required metadata
-        const userId = data.data.meta?.consumer_id;
-        const appId = data.data.meta?.consumer_app || 'default-app-id';
+        const userId = charge.meta?.consumer_id;
+        const appId = charge.meta?.consumer_app || 'default-app-id';
+        const chargeId = charge.id; // The canonical Charge ID
         
-        if (!userId) {
-            console.error('Missing user id in transaction meta for TX:', transactionId);
-            return res.status(400).json({ error: 'Missing user id in transaction meta' });
+        if (!userId || !chargeId) {
+            console.error('Missing user_id in meta or charge_id for TX_REF:', txRef);
+            return res.status(400).json({ error: 'Missing required transaction metadata' });
         }
 
-        // 6. Update Pro Status in Firestore
-        await updateProStatusInFirestore(userId, appId, transactionId);
+        // 6. Update Pro Status in Firestore using the Charge ID
+        await updateProStatusInFirestore(userId, appId, chargeId);
         
         return res.status(200).json({ status: 'verified', userId: userId });
         
