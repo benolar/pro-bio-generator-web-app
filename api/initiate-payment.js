@@ -102,7 +102,10 @@ module.exports = async (req, res) => {
             })
         });
         const customerData = await customerResponse.json();
-        if (customerData.status !== 'success') throw new Error(`Customer creation failed: ${customerData.message}`);
+        if (!customerResponse.ok) {
+            console.error('Flutterwave Customer Creation Error:', customerData);
+            throw new Error(`Customer creation failed: ${customerData.message || JSON.stringify(customerData)}`);
+        }
         const customerId = customerData.data.id;
 
         // --- Step 2: Create Payment Method ---
@@ -121,7 +124,10 @@ module.exports = async (req, res) => {
             body: JSON.stringify(paymentMethodPayload)
         });
         const pmData = await pmResponse.json();
-        if (pmData.status !== 'success') throw new Error(`Payment method creation failed: ${pmData.message}`);
+        if (!pmResponse.ok) {
+            console.error('Flutterwave Payment Method Error:', pmData);
+            throw new Error(`Payment method creation failed: ${pmData.message || JSON.stringify(pmData)}`);
+        }
         const paymentMethodId = pmData.data.id;
 
         // --- Step 3: Create Charge ---
@@ -150,7 +156,10 @@ module.exports = async (req, res) => {
             body: JSON.stringify(chargePayload)
         });
         const chargeData = await chargeResponse.json();
-        if (chargeData.status !== 'success') throw new Error(`Charge creation failed: ${chargeData.message}`);
+        if (!chargeResponse.ok) {
+            console.error('Flutterwave Charge Creation Error:', chargeData);
+            throw new Error(`Charge creation failed: ${chargeData.message || JSON.stringify(chargeData)}`);
+        }
 
         // --- Step 4: Return Next Action ---
         res.status(200).json({ next_action: chargeData.data.next_action });
