@@ -98,7 +98,7 @@ module.exports = async (req, res) => {
             },
             body: JSON.stringify({
                 email: decodedToken.email || `${userId}@biogen.app`,
-                name: { first: userId.substring(0, 10), last: "User" },
+                name: { first: "BioGen", last: "User" },
             })
         });
         const customerData = await customerResponse.json();
