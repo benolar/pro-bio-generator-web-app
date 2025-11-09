@@ -375,10 +375,8 @@
     <div id="message-box" class="fixed bottom-4 right-4 p-4 rounded-lg shadow-lg text-white transition-opacity duration-300 opacity-0 pointer-events-none z-50"></div>
     
     <script type="module">
-        const FIREBASE_CLIENT_CONFIG = { /* ... firebase config ... */ };
-        const canvasFirebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const isCanvasConfigValid = canvasFirebaseConfig && Object.keys(canvasFirebaseConfig).length > 0 && canvasFirebaseConfig.projectId;
-        const firebaseConfig = isCanvasConfigValid ? canvasFirebaseConfig : FIREBASE_CLIENT_CONFIG;
+        // Firebase configuration is expected to be injected by the environment into the global __firebase_config variable.
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
         const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId || 'default-app-id';
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
