@@ -3,7 +3,6 @@
 
 const firebaseAdmin = require('firebase-admin');
 const crypto = require('crypto');
-const { createClient } = require('@vercel/kv');
 
 // IMPORTANT: Vercel serverless functions need this to read the raw body for signature verification.
 export const config = {
@@ -15,68 +14,8 @@ export const config = {
 let admin; // Initialized Firebase Admin SDK 
 let db;    // Firestore instance
 const WEBHOOK_SECRET = process.env.FLUTTERWAVE_WEBHOOK_SECRET;
+const FLUTTERWAVE_SECRET_KEY = process.env.FLUTTERWAVE_SECRET_KEY;
 const FALLBACK_APP_ID = 'default-app-id';
-
-// Use environment variable for base URL, defaulting to sandbox for safety
-const FLUTTERWAVE_BASE_URL = process.env.FLUTTERWAVE_ENV === 'live'
-    ? 'https://f4bexperience.flutterwave.com'
-    : 'https://developersandbox-api.flutterwave.com';
-
-
-// --- Vercel KV Initialization (for OAuth token) ---
-let kv;
-if (process.env.BGNRT_KV_REST_API_URL && process.env.BGNRT_KV_REST_API_TOKEN) {
-    kv = createClient({
-        url: process.env.BGNRT_KV_REST_API_URL,
-        token: process.env.BGNRT_KV_REST_API_TOKEN,
-    });
-} else {
-    kv = null;
-    console.error('Vercel KV is not configured. OAuth token caching for API verification will fail.');
-}
-
-// --- Flutterwave OAuth 2.0 Token Management (for verification call) ---
-const FLUTTERWAVE_TOKEN_URL = 'https://idp.flutterwave.com/realms/flutterwave/protocol/openid-connect/token';
-const OAUTH_TOKEN_KEY = 'flutterwave_oauth_token';
-
-async function getFlutterwaveAuthToken() {
-    if (!kv) throw new Error('Vercel KV is required for OAuth token caching.');
-
-    const cachedToken = await kv.get(OAUTH_TOKEN_KEY);
-    // Refresh if token is missing or expires in the next 60 seconds
-    if (cachedToken && cachedToken.expires_at > Date.now() + 60000) {
-        return cachedToken.access_token;
-    }
-
-    const CLIENT_ID = process.env.FLUTTERWAVE_CLIENT_ID;
-    const CLIENT_SECRET = process.env.FLUTTERWAVE_CLIENT_SECRET;
-
-    if (!CLIENT_ID || !CLIENT_SECRET) {
-        throw new Error('Flutterwave Client ID or Secret is not configured for token refresh.');
-    }
-
-    const response = await fetch(FLUTTERWAVE_TOKEN_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-            'client_id': CLIENT_ID, 'client_secret': CLIENT_SECRET, 'grant_type': 'client_credentials'
-        })
-    });
-
-    const data = await response.json();
-    if (!response.ok || !data.access_token) {
-        console.error('Flutterwave OAuth Error in Webhook:', data);
-        throw new Error('Failed to get Flutterwave auth token for verification.');
-    }
-
-    const newToken = {
-        access_token: data.access_token,
-        expires_at: Date.now() + (data.expires_in * 1000)
-    };
-    await kv.set(OAUTH_TOKEN_KEY, newToken);
-    return newToken.access_token;
-}
-
 
 try {
     // --- START: SECURE FIREBASE ADMIN INITIALIZATION ---
@@ -102,7 +41,7 @@ try {
 }
 
 // Final function to update the user's status after successful payment
-async function updateProStatusInFirestore(userId, appId, chargeId) {
+async function updateProStatusInFirestore(userId, appId, transactionId) {
     
     if (!db || !admin) {
         throw new Error("Firebase Admin SDK not fully initialized or credentials are missing.");
@@ -113,7 +52,7 @@ async function updateProStatusInFirestore(userId, appId, chargeId) {
     await docRef.set({
         isPro: true,
         proActivatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        fwTransactionId: chargeId 
+        fwTransactionId: transactionId 
     }, { merge: true });
     
     console.log(`Successfully updated Firestore for user ${userId} in app ${appId}.`);
@@ -149,8 +88,8 @@ module.exports = async (req, res) => {
         return res.status(405).send('Method Not Allowed');
     }
 
-    if (!db || !admin || !kv) {
-        console.error('A required service (Firebase/KV) is not ready. Returning 500 for webhook retry.');
+    if (!db || !admin) {
+        console.error('Firebase service is not ready. Returning 500 for webhook retry.');
         return res.status(500).send('Server service connection failed.');
     }
     
@@ -181,41 +120,42 @@ module.exports = async (req, res) => {
         }
 
         const event = JSON.parse(bodyBuffer.toString('utf8'));
-        const { event: eventType, data: eventData } = event;
+        const { event: eventType, data: transactionData } = event;
 
-        if (!eventData || !eventData.id) {
+        if (!transactionData || !transactionData.id) {
             console.error('Malformed webhook payload: missing transaction data/id.');
             return res.status(400).send('Bad Request');
         }
 
-        // The timestamp in v4 webhook is a unix timestamp in milliseconds
-        if (event.timestamp && !validateWebhookTimestamp(new Date(event.timestamp))) {
+        if (transactionData.created_at && !validateWebhookTimestamp(transactionData.created_at)) {
             console.error('Webhook timestamp validation failed');
             return res.status(400).send('Invalid webhook timestamp');
         }
 
-        const chargeId = eventData.id;
-        appId = eventData.meta?.consumer_app || FALLBACK_APP_ID;
+        const transactionId = transactionData.id;
+        appId = transactionData.meta?.consumer_app || FALLBACK_APP_ID;
 
-        const processedDocRef = db.doc(`artifacts/${appId}/webhooks/processed/${chargeId}`);
+        const processedDocRef = db.doc(`artifacts/${appId}/webhooks/processed/${transactionId}`);
         const processedDoc = await processedDocRef.get();
         if (processedDoc.exists) {
             return res.status(200).json({ status: 'Already processed' });
         }
 
-        if (eventType === 'charge.completed') {
+        if (eventType === 'charge.completed' || eventType === 'transfer.completed') {
             
-            // --- CRITICAL: Verify transaction with API before giving value ---
-            const authToken = await getFlutterwaveAuthToken();
-            // UPDATED: Use v4 /charges endpoint
-            const verifyResp = await fetch(`${FLUTTERWAVE_BASE_URL}/charges/${chargeId}`, {
-                headers: { 'Authorization': `Bearer ${authToken}` }
+            // --- CRITICAL: Verify transaction with V3 API before giving value ---
+            if (!FLUTTERWAVE_SECRET_KEY) {
+                console.error('FLUTTERWAVE_SECRET_KEY missing for verification call.');
+                throw new Error('Server config error: Secret Key missing');
+            }
+
+            const verifyResp = await fetch(`https://api.flutterwave.com/v3/transactions/${transactionId}/verify`, {
+                headers: { 'Authorization': `Bearer ${FLUTTERWAVE_SECRET_KEY}` }
             });
             const verifyData = await verifyResp.json();
 
-            // UPDATED: Check v4 response structure
-            if (verifyData.status !== "success" || verifyData.data?.status !== "succeeded") {
-                await recordWebhookFailure(appId, chargeId, 'API verification failed: Transaction not successful');
+            if (verifyData.status !== "success" || verifyData.data?.status !== "successful") {
+                await recordWebhookFailure(appId, transactionId, 'API verification failed: Transaction not successful');
                 return res.status(400).send('Transaction not successful upon API verification');
             }
 
@@ -223,25 +163,25 @@ module.exports = async (req, res) => {
             const expectedCurrency = process.env.FLUTTERWAVE_CURRENCY || 'USD';
             
             if (parseFloat(verifyData.data.amount) !== expectedAmount || verifyData.data.currency !== expectedCurrency) {
-                console.warn(`Webhook Security Mismatch: Expected ${expectedCurrency} ${expectedAmount}, got ${verifyData.data.currency} ${verifyData.data.amount} for TX ${chargeId}`);
-                await recordWebhookFailure(appId, chargeId, 'API verification failed: Amount/currency mismatch');
+                console.warn(`Webhook Security Mismatch: Expected ${expectedCurrency} ${expectedAmount}, got ${verifyData.data.currency} ${verifyData.data.amount} for TX ${transactionId}`);
+                await recordWebhookFailure(appId, transactionId, 'API verification failed: Amount/currency mismatch');
                 return res.status(400).send('Transaction amount or currency mismatch');
             }
             // --- END: Verification ---
-            
-            const userId = eventData.meta?.consumer_id;
+
+            const userId = transactionData.meta?.consumer_id;
             if (!userId) {
-                console.error('Flutterwave event missing userId in meta.', chargeId);
-                await recordWebhookFailure(appId, chargeId, 'missing-userid-in-meta');
+                console.error('Flutterwave event missing userId in meta.', transactionId);
+                await recordWebhookFailure(appId, transactionId, 'missing-userid-in-meta');
                 return res.status(400).send('Missing userId in metadata');
             }
 
-            await updateProStatusInFirestore(userId, appId, chargeId);
+            await updateProStatusInFirestore(userId, appId, transactionId);
 
             await processedDocRef.set({
                 processedAt: admin.firestore.FieldValue.serverTimestamp(),
                 userId,
-                transactionId: chargeId
+                transactionId
             }, { merge: true });
 
         } else {

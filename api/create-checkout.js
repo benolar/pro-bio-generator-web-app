@@ -1,74 +1,8 @@
 // Vercel Serverless Function: api/create-checkout.js
-// This function creates a Flutterwave Payment link using OAuth 2.0.
+// This function creates a Flutterwave Payment link using v3 API.
 
-const { createClient } = require('@vercel/kv');
-
-// Use environment variable for base URL, defaulting to sandbox for safety
-const FLUTTERWAVE_BASE_URL = process.env.FLUTTERWAVE_ENV === 'live'
-    ? 'https://f4bexperience.flutterwave.com'
-    : 'https://developersandbox-api.flutterwave.com';
-
-const FLUTTERWAVE_API_URL = `${FLUTTERWAVE_BASE_URL}/hosted-links`;
-
-
-// --- Vercel KV Initialization ---
-let kv;
-if (process.env.BGNRT_KV_REST_API_URL && process.env.BGNRT_KV_REST_API_TOKEN) {
-    kv = createClient({
-        url: process.env.BGNRT_KV_REST_API_URL,
-        token: process.env.BGNRT_KV_REST_API_TOKEN,
-    });
-} else {
-    kv = null;
-    console.error('Vercel KV is not configured. OAuth token caching is required and will fail.');
-}
-
-// --- Flutterwave OAuth 2.0 Token Management ---
-const FLUTTERWAVE_TOKEN_URL = 'https://idp.flutterwave.com/realms/flutterwave/protocol/openid-connect/token';
-const OAUTH_TOKEN_KEY = 'flutterwave_oauth_token';
-
-async function getFlutterwaveAuthToken() {
-    if (!kv) throw new Error('Vercel KV is required for OAuth token caching.');
-
-    const cachedToken = await kv.get(OAUTH_TOKEN_KEY);
-    // Refresh if token is missing or expires in the next 60 seconds
-    if (cachedToken && cachedToken.expires_at > Date.now() + 60000) {
-        return cachedToken.access_token;
-    }
-
-    const CLIENT_ID = process.env.FLUTTERWAVE_CLIENT_ID;
-    const CLIENT_SECRET = process.env.FLUTTERWAVE_CLIENT_SECRET;
-
-    if (!CLIENT_ID || !CLIENT_SECRET) {
-        throw new Error('Flutterwave Client ID or Secret is not configured.');
-    }
-
-    const response = await fetch(FLUTTERWAVE_TOKEN_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-            'client_id': CLIENT_ID,
-            'client_secret': CLIENT_SECRET,
-            'grant_type': 'client_credentials'
-        })
-    });
-
-    const data = await response.json();
-    if (!response.ok || !data.access_token) {
-        console.error('Flutterwave OAuth Error:', data);
-        throw new Error('Failed to get Flutterwave auth token.');
-    }
-
-    const newToken = {
-        access_token: data.access_token,
-        // expires_in is in seconds, convert to ms timestamp for comparison
-        expires_at: Date.now() + (data.expires_in * 1000)
-    };
-
-    // Cache the new token
-    await kv.set(OAUTH_TOKEN_KEY, newToken);
-    return newToken.access_token;
-}
+// URL for Flutterwave v3 payments
+const FLUTTERWAVE_API_URL = 'https://api.flutterwave.com/v3/payments';
 
 // Validate TRUSTED_APP_ID format and presence early
 const TRUSTED_APP_ID = process.env.SECURE_APP_ID;
@@ -90,15 +24,14 @@ module.exports = async (req, res) => {
     }
 
     // Required ENV variables
-    const CLIENT_ID = process.env.FLUTTERWAVE_CLIENT_ID;
-    const CLIENT_SECRET = process.env.FLUTTERWAVE_CLIENT_SECRET;
+    const FLUTTERWAVE_SECRET_KEY = process.env.FLUTTERWAVE_SECRET_KEY;
     const AMOUNT = process.env.FLUTTERWAVE_AMOUNT || '2.99'; // Defaulting for safety
     const CURRENCY = process.env.FLUTTERWAVE_CURRENCY || 'USD'; 
 
     const { userId, originUrl } = req.body;
     
-    if (!CLIENT_ID || !CLIENT_SECRET) {
-        return res.status(500).json({ error: 'Server configuration error: Flutterwave credentials missing.' });
+    if (!FLUTTERWAVE_SECRET_KEY) {
+        return res.status(500).json({ error: 'Server configuration error: Flutterwave Secret Key missing.' });
     }
     
     if (!userId || !originUrl) {
@@ -168,19 +101,15 @@ module.exports = async (req, res) => {
             console.warn(`Using fallback app ID (default-app-id) for user ${userId} transaction ${tx_ref}`);
         }
         
-        // UPDATED payload for v4 compliance
         const payload = {
-            reference: tx_ref, // Changed from tx_ref
+            tx_ref: tx_ref,
             amount: AMOUNT,
             currency: CURRENCY,
             redirect_url: `${originUrl}?payment=success&tx_ref=${tx_ref}`,
             customer: {
                 email: "anonuser@biogen.com",
-                // Updated name to be an object per v4 spec
-                name: {
-                    first: userId,
-                    last: 'User'
-                }
+                phonenumber: "0000000000",
+                name: userId, 
             },
             meta: {
                 consumer_id: userId,
@@ -193,17 +122,12 @@ module.exports = async (req, res) => {
             }
         };
 
-        // 1. Get OAuth token (will be cached)
-        const authToken = await getFlutterwaveAuthToken();
-
-        // 2. Call the Flutterwave API to create the payment link
+        // Call the Flutterwave API to create the payment link
         const fwResponsePromise = fetch(FLUTTERWAVE_API_URL, {
             method: 'POST',
             headers: { 
-                'Authorization': `Bearer ${authToken}`,
-                'Content-Type': 'application/json',
-                'X-Idempotency-Key': payload.reference,
-                'X-Trace-Id': `trace-${Date.now()}-${userId.substring(0, 8)}`
+                'Authorization': `Bearer ${FLUTTERWAVE_SECRET_KEY}`,
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(payload)
         });
@@ -217,7 +141,7 @@ module.exports = async (req, res) => {
             throw new Error(data.message || 'Failed to create Flutterwave payment link.');
         }
 
-        // 3. Send the Flutterwave link back to the frontend
+        // Send the Flutterwave link back to the frontend
         res.status(200).json({ url: data.data.link });
 
     } catch (error) {
