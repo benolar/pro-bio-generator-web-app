@@ -22,16 +22,53 @@
             color: #10b981; /* Green color for enabled pro text */
             font-weight: 600;
         }
+        /* Modal Transitions */
+        .modal-enter {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        .modal-enter-active {
+            opacity: 1;
+            transform: scale(1);
+            transition: opacity 300ms ease-out, transform 300ms ease-out;
+        }
+        .modal-exit {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .modal-exit-active {
+            opacity: 0;
+            transform: scale(0.95);
+            transition: opacity 200ms ease-in, transform 200ms ease-in;
+        }
     </style>
 </head>
 <body>
 
     <div class="min-h-screen flex items-center justify-center p-4">
-        <div class="w-full max-w-2xl bg-white p-6 md:p-10 rounded-xl card">
-            <header class="text-center mb-8">
+        <div class="w-full max-w-2xl bg-white p-6 md:p-10 rounded-xl card relative">
+            
+            <!-- Auth Controls (Top Right) -->
+            <div class="absolute top-6 right-6 z-10">
+                <button id="auth-btn" class="hidden bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 px-3 py-2 rounded-lg text-xs font-semibold shadow-sm flex items-center gap-2 transition-all">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor"/></svg>
+                    <span id="auth-btn-text">Sign In</span>
+                </button>
+                <div id="user-profile" class="hidden flex flex-col items-end">
+                    <div class="flex items-center gap-3">
+                         <div class="text-right">
+                            <p id="user-name" class="text-xs font-bold text-gray-800 leading-tight"></p>
+                            <p class="text-[10px] text-gray-400 uppercase tracking-wider">Account</p>
+                         </div>
+                         <button id="sign-out-btn" class="text-xs text-red-500 hover:text-red-700 font-medium border border-red-100 hover:bg-red-50 px-2 py-1 rounded transition-colors">Sign Out</button>
+                    </div>
+                </div>
+            </div>
+
+            <header class="text-center mb-8 pt-4">
                 <h1 class="text-4xl font-bold text-gray-900 mb-2">⚡ Pro Bio Generator</h1>
                 <p class="text-lg text-gray-500">Craft the perfect professional or social bio instantly.</p>
-                <div id="user-info" class="text-xs text-gray-400 mt-2">Connecting to secure session...</div>
+                <div id="user-info" class="text-xs text-gray-400 mt-2 opacity-60">Connecting to secure session...</div>
             </header>
 
             <!-- Input Form -->
@@ -125,8 +162,58 @@
             </div>
 
             <!-- Message Box for Alerts -->
-            <div id="message-box" class="fixed bottom-4 right-4 p-4 rounded-lg shadow-lg text-white transition-opacity duration-300 opacity-0 pointer-events-none"></div>
+            <div id="message-box" class="fixed bottom-4 right-4 p-4 rounded-lg shadow-lg text-white transition-opacity duration-300 opacity-0 pointer-events-none z-50"></div>
 
+        </div>
+    </div>
+
+    <!-- AUTH MODAL -->
+    <div id="auth-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center transition-opacity opacity-0" aria-modal="true">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden transform transition-all scale-95" id="auth-modal-panel">
+            <!-- Header -->
+            <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                <h3 class="text-lg font-bold text-gray-800" id="auth-modal-title">Sign In</h3>
+                <button id="close-auth-modal" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <!-- Body -->
+            <div class="p-6 space-y-6">
+                <!-- Google Button -->
+                <button id="google-auth-btn" class="w-full bg-white border border-gray-200 text-gray-700 font-medium py-2.5 px-4 rounded-xl hover:bg-gray-50 hover:border-gray-300 focus:ring-2 focus:ring-offset-1 focus:ring-indigo-100 transition-all flex items-center justify-center gap-3 shadow-sm">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                    <span id="google-btn-text">Continue with Google</span>
+                </button>
+
+                <div class="relative flex items-center py-2">
+                    <div class="flex-grow border-t border-gray-200"></div>
+                    <span class="flex-shrink-0 mx-4 text-gray-400 text-xs uppercase tracking-wider">Or with email</span>
+                    <div class="flex-grow border-t border-gray-200"></div>
+                </div>
+
+                <!-- Email Form -->
+                <form id="email-auth-form" class="space-y-4">
+                    <div class="space-y-1">
+                        <label class="block text-sm font-medium text-gray-700">Email Address</label>
+                        <input type="email" id="auth-email" required class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" placeholder="you@example.com">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block text-sm font-medium text-gray-700">Password</label>
+                        <input type="password" id="auth-password" required minlength="6" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" placeholder="••••••••">
+                    </div>
+                    
+                    <button type="submit" id="email-submit-btn" class="w-full bg-indigo-600 text-white font-semibold py-2.5 rounded-xl hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-100 transition-all shadow-lg shadow-indigo-200">
+                        Sign In
+                    </button>
+                </form>
+            </div>
+
+            <!-- Footer -->
+            <div class="bg-gray-50 px-6 py-4 text-center text-sm text-gray-600">
+                <span id="auth-mode-message">Don't have an account?</span>
+                <button id="toggle-auth-mode" class="text-indigo-600 font-bold hover:underline ml-1">Create one</button>
+            </div>
         </div>
     </div>
 
@@ -154,17 +241,35 @@
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserSessionPersistence, getIdToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        // Updated imports to include Google Auth and Email Auth
+        import { 
+            getAuth, 
+            signInAnonymously, 
+            signInWithCustomToken, 
+            onAuthStateChanged, 
+            setPersistence, 
+            browserSessionPersistence, 
+            getIdToken,
+            GoogleAuthProvider, 
+            signInWithPopup,
+            linkWithPopup,
+            signOut,
+            EmailAuthProvider,
+            linkWithCredential,
+            createUserWithEmailAndPassword,
+            signInWithEmailAndPassword
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, limit, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // --- Global State ---
         let app, db, auth, userId = null;
         let isAuthReady = false;
-        let isPro = false; // NEW: Track Pro status
+        let isPro = false;
+        let isRegisterMode = false; // For Auth Modal State
 
         // --- DOM Elements ---
         const API_PROXY_URL = '/api/generate-bio';
-        const CREATE_CHECKOUT_URL = '/api/create-checkout'; // NEW
+        const CREATE_CHECKOUT_URL = '/api/create-checkout';
         const generateButton = document.getElementById('generate-button');
         const loadingSpinner = document.getElementById('loading-spinner');
         const outputArea = document.getElementById('output-area');
@@ -179,7 +284,23 @@
         const copyMessage = document.getElementById('copy-message');
         const historyList = document.getElementById('history-list');
         const proPitchArea = document.getElementById('pro-pitch-area');
-        let unlockProButton = null; // Defined here, attached/re-attached later
+        let unlockProButton = null;
+
+        // Auth UI Elements
+        const authBtn = document.getElementById('auth-btn');
+        const authBtnText = document.getElementById('auth-btn-text');
+        const userProfile = document.getElementById('user-profile');
+        const userNameDisplay = document.getElementById('user-name');
+        const signOutBtn = document.getElementById('sign-out-btn');
+        const userInfoFooter = document.getElementById('user-info');
+
+        // Modal Elements
+        const authModal = document.getElementById('auth-modal');
+        const authModalPanel = document.getElementById('auth-modal-panel');
+        const closeAuthModalBtn = document.getElementById('close-auth-modal');
+        const toggleAuthModeBtn = document.getElementById('toggle-auth-mode');
+        const googleAuthBtn = document.getElementById('google-auth-btn');
+        const emailAuthForm = document.getElementById('email-auth-form');
 
         // --- Utility Functions ---
 
@@ -196,14 +317,6 @@
             }, 3000);
         }
 
-        // Add error handling utility
-        const handleError = (error, action) => {
-            console.error(`Error during ${action}:`, error);
-            const message = error.response?.data?.error || error.message || `Failed to ${action}`;
-            showMessage(message, true);
-        };
-
-        // Improve retries with exponential backoff
         async function fetchWithRetry(url, options, maxRetries = 5) {
             let lastError;
             for (let i = 0; i < maxRetries; i++) {
@@ -223,9 +336,71 @@
             throw lastError;
         }
 
-        // Add rate limiting for generate button
-        let lastGenerateTime = 0;
-        const GENERATE_COOLDOWN = 2000; // 2 seconds
+        // --- Auth Modal Logic ---
+
+        function openAuthModal() {
+            // Determine logic default state:
+            // If anonymous user -> default to Register (Link) mode to save history
+            // If not logged in -> default to Sign In mode
+            const user = auth.currentUser;
+            if (user && user.isAnonymous) {
+                isRegisterMode = true;
+            } else {
+                isRegisterMode = false;
+            }
+            
+            updateAuthModalUI();
+            
+            authModal.classList.remove('hidden');
+            // Small delay to allow display:block to apply before opacity transition
+            requestAnimationFrame(() => {
+                authModal.classList.remove('opacity-0');
+                authModalPanel.classList.remove('scale-95');
+                authModalPanel.classList.add('scale-100');
+            });
+        }
+
+        function closeAuthModal() {
+            authModal.classList.add('opacity-0');
+            authModalPanel.classList.remove('scale-100');
+            authModalPanel.classList.add('scale-95');
+            
+            setTimeout(() => {
+                authModal.classList.add('hidden');
+                // Clear form
+                document.getElementById('auth-email').value = '';
+                document.getElementById('auth-password').value = '';
+            }, 200); // Match transition duration
+        }
+
+        function toggleAuthMode() {
+            isRegisterMode = !isRegisterMode;
+            updateAuthModalUI();
+        }
+
+        function updateAuthModalUI() {
+            const title = document.getElementById('auth-modal-title');
+            const submitBtn = document.getElementById('email-submit-btn');
+            const modeMsg = document.getElementById('auth-mode-message');
+            const googleBtnText = document.getElementById('google-btn-text');
+
+            const user = auth.currentUser;
+            const isAnon = user && user.isAnonymous;
+
+            if (isRegisterMode) {
+                title.textContent = isAnon ? "Save Account" : "Create Account";
+                submitBtn.textContent = isAnon ? "Link Email" : "Sign Up";
+                modeMsg.textContent = "Already have an account?";
+                toggleAuthModeBtn.textContent = "Sign In";
+                googleBtnText.textContent = isAnon ? "Link with Google" : "Sign up with Google";
+            } else {
+                title.textContent = "Sign In";
+                submitBtn.textContent = "Sign In";
+                modeMsg.textContent = "Don't have an account?";
+                toggleAuthModeBtn.textContent = "Create one";
+                googleBtnText.textContent = "Sign in with Google";
+            }
+        }
 
         // --- Firebase & State Management ---
 
@@ -233,21 +408,26 @@
             app = initializeApp(firebaseConfig);
             db = getFirestore(app);
             auth = getAuth(app);
-            document.getElementById('user-info').textContent = 'Authenticating...';
+            userInfoFooter.textContent = 'Authenticating...';
 
-            // Ensure persistence is set BEFORE signing in
             (async () => {
                 try {
                     await setPersistence(auth, browserSessionPersistence);
-                    if (initialAuthToken) {
-                        await signInWithCustomToken(auth, initialAuthToken);
-                    } else {
-                        await signInAnonymously(auth);
+                    if (!auth.currentUser) {
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            setTimeout(async () => {
+                                if (!auth.currentUser) {
+                                    await signInAnonymously(auth);
+                                }
+                            }, 1000);
+                        }
                     }
                 } catch (error) {
                     console.error("Auth Persistence/Sign-in Error:", error);
                     showMessage("Error establishing user session.", true);
-                    isAuthReady = true; // Still mark as ready to prevent infinite block
+                    isAuthReady = true; 
                 }
             })();
 
@@ -255,19 +435,146 @@
                 if (user) {
                     userId = user.uid;
                     isAuthReady = true;
-                    document.getElementById('user-info').textContent = `User ID: ${userId}`;
+                    
+                    if (user.isAnonymous) {
+                        authBtn.classList.remove('hidden');
+                        userProfile.classList.add('hidden');
+                        authBtnText.textContent = "Sign In to Save History";
+                        userInfoFooter.textContent = `Guest Session: ${userId.slice(0,6)}...`;
+                    } else {
+                        authBtn.classList.add('hidden');
+                        userProfile.classList.remove('hidden');
+                        userNameDisplay.textContent = user.displayName || user.email || "User";
+                        userInfoFooter.textContent = `Logged in as ${user.email || user.displayName}`;
+                        
+                        // Ensure modal is closed if we transition to a signed-in state
+                        closeAuthModal();
+                    }
+
                     loadHistory(); 
-                    listenToProStatus(); // NEW: Start listening for Pro status
+                    listenToProStatus(); 
                 } else {
-                    // This handles anonymous sign-in failure, which should be caught above, 
-                    // but serves as a final fail-safe.
-                    isAuthReady = true;
+                    userInfoFooter.textContent = 'Not connected';
                 }
             });
         } else {
-            document.getElementById('user-info').textContent = 'Firebase is not configured! Check the script block.';
+            userInfoFooter.textContent = 'Firebase is not configured! Check the script block.';
             isAuthReady = true;
         }
+
+        // --- Auth Actions ---
+        const googleProvider = new GoogleAuthProvider();
+
+        async function handleGoogleAuth() {
+            const user = auth.currentUser;
+            const btn = googleAuthBtn;
+            const originalText = document.getElementById('google-btn-text').textContent;
+            
+            // Basic Loading State
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+
+            try {
+                if (!user) {
+                    // Standard Sign In
+                    await signInWithPopup(auth, googleProvider);
+                } else if (user.isAnonymous) {
+                    // Try to link
+                    try {
+                        await linkWithPopup(user, googleProvider);
+                        showMessage("Account successfully linked!");
+                    } catch (error) {
+                        if (error.code === 'auth/credential-already-in-use') {
+                             // Switch User
+                            if(confirm("That Google Account is already registered. Switch to it? (Guest history will be lost)")) {
+                                await signInWithPopup(auth, googleProvider);
+                            }
+                        } else {
+                            throw error;
+                        }
+                    }
+                } else {
+                    // Already logged in, maybe user wants to switch?
+                     await signInWithPopup(auth, googleProvider);
+                }
+                closeAuthModal();
+            } catch (e) {
+                showMessage(e.message, true);
+            } finally {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+            }
+        }
+
+        async function handleEmailAuth(e) {
+            e.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const submitBtn = document.getElementById('email-submit-btn');
+            
+            const originalBtnText = submitBtn.textContent;
+            submitBtn.textContent = 'Processing...';
+            submitBtn.disabled = true;
+
+            try {
+                if (isRegisterMode) {
+                     const user = auth.currentUser;
+                     // If anonymous, we LINK. If no user (unlikely due to auto-anon), we CREATE.
+                     if (user && user.isAnonymous) {
+                         const credential = EmailAuthProvider.credential(email, password);
+                         await linkWithCredential(user, credential);
+                         showMessage("Account linked successfully!");
+                     } else {
+                         await createUserWithEmailAndPassword(auth, email, password);
+                         showMessage("Account created successfully!");
+                     }
+                } else {
+                    // Sign In (Sign out anon user effectively)
+                    await signInWithEmailAndPassword(auth, email, password);
+                    showMessage("Welcome back!");
+                }
+                closeAuthModal();
+            } catch (error) {
+                console.error("Auth Error:", error);
+                let msg = error.message;
+                if (error.code === 'auth/email-already-in-use') msg = "That email is already in use. Please Sign In.";
+                if (error.code === 'auth/wrong-password') msg = "Incorrect password.";
+                if (error.code === 'auth/user-not-found') msg = "No account found with that email.";
+                if (error.code === 'auth/weak-password') msg = "Password should be at least 6 characters.";
+                if (error.code === 'auth/credential-already-in-use') msg = "That email is already linked to another account.";
+                
+                showMessage(msg, true);
+            } finally {
+                submitBtn.textContent = originalBtnText;
+                submitBtn.disabled = false;
+            }
+        }
+
+        async function handleSignOut() {
+            try {
+                await signOut(auth);
+                window.location.reload();
+            } catch (error) {
+                console.error("Sign Out Error:", error);
+            }
+        }
+
+        // Attach Auth Listeners
+        authBtn.addEventListener('click', openAuthModal);
+        signOutBtn.addEventListener('click', handleSignOut);
+        
+        // Modal Listeners
+        closeAuthModalBtn.addEventListener('click', closeAuthModal);
+        toggleAuthModeBtn.addEventListener('click', toggleAuthMode);
+        googleAuthBtn.addEventListener('click', handleGoogleAuth);
+        emailAuthForm.addEventListener('submit', handleEmailAuth);
+        
+        // Close modal on outside click
+        authModal.addEventListener('click', (e) => {
+            if (e.target === authModal) closeAuthModal();
+        });
+
+        // --- Database Logic ---
 
         function getHistoryCollectionRef() {
             if (!db || !userId) return null;
@@ -277,7 +584,6 @@
 
         function getStatusDocRef() {
             if (!db || !userId) return null;
-            // Document path: artifacts/{appId}/users/{userId}/profile/status
             return doc(db, `artifacts/${appId}/users/${userId}/profile/status`);
         }
 
@@ -292,7 +598,6 @@
                 if (newProStatus !== isPro) {
                     isPro = newProStatus;
                     updateProUI();
-                    // Show brief notification when Pro becomes active
                     if (isPro) {
                         showMessage("Pro Access Activated!", false);
                     }
@@ -308,7 +613,6 @@
                 length: ['medium', 'fixed-long', 'custom']
             };
 
-            // Reset selections if needed
             if (!isPro) {
                 if (proFeatures.length.includes(lengthSelect.value)) {
                     lengthSelect.value = 'short';
@@ -318,7 +622,6 @@
                 }
             }
 
-            // Update Pro pitch area
             if (isPro) {
                 proPitchArea.innerHTML = '<p class="text-lg font-bold text-green-600">🎉 PRO ACCESS GRANTED!</p><p class="text-sm text-gray-500">All features are now available below.</p>';
             } else {
@@ -328,7 +631,6 @@
                         Unlock Pro ($2.99 One-Time)
                     </button>
                 `;
-                // Re-attach event listener
                 const newUnlockButton = document.getElementById('unlock-pro-button-active');
                 if(newUnlockButton) {
                     newUnlockButton.addEventListener('click', handleProUnlock);
@@ -336,7 +638,6 @@
                 }
             }
 
-            // Update dropdowns
             const proElements = document.querySelectorAll('[data-pro="true"]');
             
             proElements.forEach(option => {
@@ -345,7 +646,6 @@
                     option.innerHTML = option.innerHTML.replace('(<span class="text-yellow-600">👑 Pro</span>)', '(<span class="pro-enabled">✅ Pro</span>)');
                 } else {
                     option.disabled = true;
-                    // Reset to show Pro text if it was previously enabled
                     if (!option.innerHTML.includes('👑 Pro')) {
                          const baseText = option.value.charAt(0).toUpperCase() + option.value.slice(1).replace('-', ' ');
                          option.innerHTML = `${baseText} (<span class="text-yellow-600">👑 Pro</span>)`;
@@ -353,7 +653,6 @@
                 }
             });
 
-            // Ensure a free option is selected if Pro features become disabled
             if (!isPro && lengthSelect.value !== 'short') {
                 lengthSelect.value = 'short';
                 customLengthGroup.classList.add('hidden');
@@ -363,8 +662,7 @@
             }
         }
 
-
-        // --- FWPGW Checkout Logic (NEW) ---
+        // --- FWPGW Checkout Logic ---
 
         async function handleProUnlock() {
             if (!isAuthReady || !userId) {
@@ -384,7 +682,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         userId: userId,
-                        originUrl: window.location.origin + window.location.pathname // Pass current URL for success/cancel
+                        originUrl: window.location.origin + window.location.pathname
                     }) 
                 });
 
@@ -394,8 +692,6 @@
                 }
 
                 const result = await response.json();
-                
-                // Redirect user to the FWPGW Checkout page
                 window.location.href = result.url;
 
             } catch (error) {
@@ -406,40 +702,32 @@
             }
         }
         
-        // Handle post-payment URL parameters
         window.onload = () => {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('payment') === 'success') {
                 showMessage("Payment successful! Pro status will update shortly.", false);
-                // Clean the URL
                 history.replaceState(null, '', window.location.pathname);
             } else if (urlParams.get('payment') === 'cancelled') {
                 showMessage("Payment cancelled. You can try again anytime.", true);
-                // Clean the URL
                 history.replaceState(null, '', window.location.pathname);
             }
-            
-             // Pre-fill fields for a quick test
              nicheInput.value = "Freelance React Developer";
              goalsInput.value = "Tailwind, Quick Turnaround";
         };
 
-
-        // --- Generation & History Logic (Slightly modified feature gating) ---
+        // --- Generation & History Logic ---
 
         async function generateContent(niche, tone, goals, length, customLength, platform, userId) {
             if(!auth || !auth.currentUser) {
                 throw new Error("Authentication failed. Please refresh and try again.");
             }
             
-            // Get the user's ID token for secure API call
             const token = await auth.currentUser.getIdToken();
 
             const response = await fetchWithRetry(API_PROXY_URL, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    // Pass the secure ID token
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({ niche, tone, goals, length, customLength, platform, userId, appId }) 
@@ -532,7 +820,6 @@
             }).join('');
         }
 
-        // Update copyToClipboard to accept history flag
         function copyToClipboard(text, isHistory = false) {
             const tempInput = document.createElement('textarea');
             tempInput.value = text;
@@ -542,9 +829,7 @@
             let success = false;
             try {
                 success = document.execCommand('copy');
-            } catch (err) {
-                // console.error('Copy command failed:', err);
-            }
+            } catch (err) { }
             
             document.body.removeChild(tempInput);
 
@@ -555,7 +840,6 @@
                     copyMessage.classList.add('bg-green-600');
                     setTimeout(() => { copyMessage.classList.add('hidden'); }, 2000);
                 } else {
-                    // Smaller feedback for history copy
                     showMessage("Bio copied!", false);
                 }
             } else {
@@ -564,19 +848,14 @@
         }
 
         function renderResults(resultText, customLength, platform) {
-            // 1. Unhide the output area and clear previous results
             outputArea.classList.remove('hidden');
             bioResults.innerHTML = ''; 
 
-            // 2. Parse the bios using a regex to split by number and period
             const bios = resultText.split(/\d+\.\s?/).filter(b => b.trim().length > 0);
-
-            // 3. Get current form values for the save function's context
             const niche = nicheInput.value.trim();
             const tone = toneSelect.value;
             const length = lengthSelect.value;
 
-            // 4. Render each bio into a card
             bios.forEach(bio => {
                 const bioText = bio.trim();
                 const charCount = bioText.length;
@@ -595,12 +874,11 @@
                     </div>
                 `;
 
-                // 5. Attach event listeners to the new buttons
                 const copyBtn = bioCard.querySelector('.copy-btn');
                 const saveBtn = bioCard.querySelector('.save-btn');
 
                 copyBtn.addEventListener('click', () => {
-                    copyToClipboard(bioText, false); // 'false' indicates it's not from the history list
+                    copyToClipboard(bioText, false);
                 });
 
                 saveBtn.addEventListener('click', (e) => {
@@ -613,10 +891,11 @@
             });
         }
 
+        // --- Generation Handler ---
+        let lastGenerateTime = 0;
+        const GENERATE_COOLDOWN = 2000;
 
-        // --- Generation Handler (with rate limiting) ---
         async function handleGeneration() {
-            // Add rate limiting
             const now = Date.now();
             if (now - lastGenerateTime < GENERATE_COOLDOWN) {
                 showMessage("Please wait a moment before generating again", true);
@@ -629,9 +908,8 @@
                 return;
             }
             
-            // CRITICAL: Ensure we have userId for the server check
             if (!userId || !db) {
-                showMessage("Authentication is missing. Cannot start generation. (Firebase client config not set?)", true);
+                showMessage("Authentication is missing. Cannot start generation.", true);
                 return;
             }
 
@@ -643,16 +921,13 @@
             
             let customLength = null;
 
-            // --- Feature Gate Logic (Client-side UX check) ---
             const isProFeatureUsed = length !== 'short' || platform !== 'General';
             
             if (isProFeatureUsed && !isPro) {
                 showMessage(`The '${length.toUpperCase().replace('-', ' ')}' length or '${platform}' platform requires Pro Mode. Unlock Pro to use!`, true);
                 return;
             }
-            // --- End Feature Gate Logic ---
 
-            // Validate custom length only if 'custom' is selected and Pro is enabled
             if (length === 'custom' && isPro) {
                 customLength = parseInt(customLengthInput.value, 10);
                 if (isNaN(customLength) || customLength < 300 || customLength > 1000) {
@@ -661,13 +936,11 @@
                 }
             }
 
-
             if (!niche) {
                 showMessage("Please enter your role or niche to generate a bio.", true);
                 return;
             }
 
-            // --- UI Updates: Start Loading ---
             generateButton.disabled = true;
             loadingSpinner.classList.remove('hidden');
             generateButton.lastChild.textContent = 'Generating...';
@@ -675,12 +948,10 @@
             copyMessage.classList.add('hidden');
 
             try {
-                // Generate content (includes Authorization header)
                 const result = await generateContent(niche, tone, goals, length, customLength, platform, userId); 
                 renderResults(result, customLength, platform); 
             } catch (error) {
                 console.error("Generation error:", error);
-                // Check for 403 error specifically from the server-side gate
                 if (error.message && error.message.includes('403')) {
                     showMessage('Access Denied: The server confirmed this is a Pro feature.', true);
                 } else {
@@ -693,16 +964,13 @@
             }
         }
 
-        // Event listener to show/hide the custom length input
         lengthSelect.addEventListener('change', () => {
-            // Check if isPro is true before showing custom length, even if selected
             const shouldShow = lengthSelect.value === 'custom' && isPro;
             customLengthGroup.classList.toggle('hidden', !shouldShow);
         });
 
-        // Attach event listeners
         generateButton.addEventListener('click', handleGeneration);
-        // Initial setup for the Unlock button (will be re-attached dynamically by updateProUI)
+        
         document.addEventListener('DOMContentLoaded', () => {
             const initialUnlockButton = document.getElementById('unlock-pro-button');
             if(initialUnlockButton) {
@@ -711,8 +979,6 @@
             }
         });
 
-
-        // Run initial UI update and make global function available
         updateProUI();
         window.copyToClipboard = copyToClipboard; 
     </script>
