@@ -39,6 +39,7 @@ if (process.env.BGNRT_KV_REST_API_URL && process.env.BGNRT_KV_REST_API_TOKEN) {
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const MODEL_NAME = 'gemini-2.5-flash';
+const IMAGE_MODEL_NAME = 'gemini-2.5-flash-image';
 
 // Character limits
 const CHAR_LIMITS = {
@@ -271,7 +272,7 @@ module.exports = async (req, res) => {
         userId = decodedToken.uid; 
 
         // Extract client body data
-        const { niche, tone, goals, length, customLength, platform } = req.body;
+        const { mode, currentBio, remixInstruction, niche, tone, goals, length, customLength, platform } = req.body;
         
         // 2. INPUT VALIDATION
         if (!niche || !tone || !length || !platform) {
@@ -336,6 +337,35 @@ module.exports = async (req, res) => {
         const sGoals = sanitizeInput(goals);
         const sPlatform = sanitizeInput(platform);
 
+        // --- MODE: REMIX ---
+        if (mode === 'remix') {
+            if (!currentBio || !remixInstruction) {
+                return res.status(400).json({ error: 'Missing bio or instruction for remix.' });
+            }
+
+            const remixPrompt = `Role: Expert Social Media Editor.
+            Task: Rewrite the following bio.
+            Original Bio: "${sanitizeInput(currentBio)}"
+            User Instruction: ${sanitizeInput(remixInstruction)}
+            Context:
+            - Niche: ${sNiche}
+            - Tone: ${sTone}
+            - Platform: ${sPlatform}
+            - Max Length: ${maxLength} characters
+            Constraints: Return ONLY the new bio text. Do not explain. Keep it optimized for the platform.`;
+
+            const remixPayload = {
+                model: MODEL_NAME,
+                contents: remixPrompt,
+                config: { temperature: 0.7 }
+            };
+
+            const remixResult = await generateWithRetry(remixPayload);
+            return res.status(200).json({ text: remixResult.text });
+        }
+
+        // --- MODE: GENERATE (Standard) ---
+
         const systemPrompt = `You are a world-class copywriter specializing in creating highly optimized, attention-grabbing bios for professional and social media platforms.
         Your task is to generate five distinct bio options based on the user's input.
         - Style: The tone must be strictly '${sTone}'.
@@ -354,18 +384,61 @@ module.exports = async (req, res) => {
             }
         };
 
-        // 7. Execute AI Request with Retry Logic
-        const result = await generateWithRetry(aiPayload);
+        // 7. Execute AI Requests in Parallel (Bio Text + Avatar)
         
-        const text = result.text;
+        // Image Prompt for Avatar
+        const imagePrompt = `A professional, high-quality profile picture avatar for a ${sNiche} persona. Style: ${sTone}. Centered headshot, minimalist background, photorealistic or illustrated matching the tone.`;
+        const imagePayload = {
+            model: IMAGE_MODEL_NAME,
+            contents: { parts: [{ text: imagePrompt }] },
+            config: {
+                imageConfig: { aspectRatio: '1:1' }
+            }
+        };
+
+        // Run both generations
+        const [textResult, imageResult] = await Promise.allSettled([
+            generateWithRetry(aiPayload),
+            ai.models.generateContent(imagePayload)
+        ]);
+        
+        // Process Text Result (Mandatory)
+        let text = "";
+        if (textResult.status === 'fulfilled') {
+            text = textResult.value.text;
+        } else {
+            console.error('Text generation failed:', textResult.reason);
+            throw textResult.reason;
+        }
 
         if (!text) {
-            console.error('AI generation returned an empty text response. Full API response:', JSON.stringify(result, null, 2));
+            console.error('AI generation returned an empty text response.');
             return res.status(500).json({ error: 'AI failed to generate content. Try a simpler niche.' });
         }
 
+        // Process Image Result (Optional - fail gracefully)
+        let avatarImage = null;
+        if (imageResult.status === 'fulfilled') {
+            try {
+                const response = imageResult.value;
+                // Iterate to find image part in response candidates
+                if(response.candidates?.[0]?.content?.parts) {
+                    for (const part of response.candidates[0].content.parts) {
+                        if (part.inlineData) {
+                            avatarImage = part.inlineData.data; // base64 string
+                            break;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('Failed to extract image data:', e.message);
+            }
+        } else {
+            console.warn('Avatar generation failed (non-fatal):', imageResult.reason);
+        }
+
         // 8. Success
-        res.status(200).json({ text });
+        res.status(200).json({ text, avatarImage });
 
     } catch (error) {
         console.error(`Request failed for user ${userId || 'unknown'}:`, error);
