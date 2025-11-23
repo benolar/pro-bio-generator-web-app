@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en" class="antialiased">
 <head>
@@ -426,6 +427,7 @@
                 lbl_avatar: "Generate AI Avatar",
                 ph_goals: "e.g. Hiring now, link in bio, minimalistic...",
                 btn_gen: "Generate Bios & Avatar",
+                btn_gen_only: "Generate Bios",
                 res_title: "Generated Persona",
                 unlock_pro: "Unlock Pro",
                 guest_user: "Guest User",
@@ -439,7 +441,11 @@
                 len_short: "Short (Free)",
                 len_medium: "Medium (Pro)",
                 len_long: "Long (Pro)",
-                len_custom: "Custom (Pro)"
+                len_custom: "Custom (Pro)",
+                res_opt: "Option",
+                res_copy: "Copy",
+                res_save: "Save",
+                tooltip_pro: "Unlock Pro to access"
             },
             es: {
                 new_gen: "Nueva Generación",
@@ -456,6 +462,7 @@
                 lbl_avatar: "Generar Avatar IA",
                 ph_goals: "ej. Contratando, enlace en bio...",
                 btn_gen: "Generar Bios y Avatar",
+                btn_gen_only: "Generar Bios",
                 res_title: "Persona Generada",
                 unlock_pro: "Desbloquear Pro",
                 guest_user: "Usuario Invitado",
@@ -469,7 +476,11 @@
                 len_short: "Corto (Gratis)",
                 len_medium: "Medio (Pro)",
                 len_long: "Largo (Pro)",
-                len_custom: "Personalizado"
+                len_custom: "Personalizado",
+                res_opt: "Opción",
+                res_copy: "Copiar",
+                res_save: "Guardar",
+                tooltip_pro: "Desbloquear Pro para acceder"
             },
             fr: {
                 new_gen: "Nouvelle Génération",
@@ -486,6 +497,7 @@
                 lbl_avatar: "Générer Avatar IA",
                 ph_goals: "ex. Embauche, lien en bio...",
                 btn_gen: "Générer Bios & Avatar",
+                btn_gen_only: "Générer Bios",
                 res_title: "Persona Générée",
                 unlock_pro: "Débloquer Pro",
                 guest_user: "Invité",
@@ -499,7 +511,11 @@
                 len_short: "Court (Gratuit)",
                 len_medium: "Moyen (Pro)",
                 len_long: "Long (Pro)",
-                len_custom: "Personnalisé"
+                len_custom: "Personnalisé",
+                res_opt: "Option",
+                res_copy: "Copier",
+                res_save: "Enregistrer",
+                tooltip_pro: "Débloquer Pro pour accéder"
             },
             pt: {
                 new_gen: "Nova Geração",
@@ -516,6 +532,7 @@
                 lbl_avatar: "Gerar Avatar IA",
                 ph_goals: "ex. Contratando, link na bio...",
                 btn_gen: "Gerar Bios e Avatar",
+                btn_gen_only: "Gerar Bios",
                 res_title: "Persona Gerada",
                 unlock_pro: "Desbloquear Pro",
                 guest_user: "Usuário Convidado",
@@ -529,7 +546,11 @@
                 len_short: "Curto (Grátis)",
                 len_medium: "Médio (Pro)",
                 len_long: "Longo (Pro)",
-                len_custom: "Personalizado"
+                len_custom: "Personalizado",
+                res_opt: "Opção",
+                res_copy: "Copiar",
+                res_save: "Salvar",
+                tooltip_pro: "Desbloquear Pro para acessar"
             },
             de: {
                 new_gen: "Neue Generierung",
@@ -546,6 +567,7 @@
                 lbl_avatar: "KI-Avatar generieren",
                 ph_goals: "z.B. Einstellung, Link in Bio...",
                 btn_gen: "Bios & Avatar generieren",
+                btn_gen_only: "Bios generieren",
                 res_title: "Generierte Persona",
                 unlock_pro: "Pro Freischalten",
                 guest_user: "Gastbenutzer",
@@ -559,7 +581,11 @@
                 len_short: "Kurz (Kostenlos)",
                 len_medium: "Mittel (Pro)",
                 len_long: "Lang (Pro)",
-                len_custom: "Benutzerdefiniert"
+                len_custom: "Benutzerdefiniert",
+                res_opt: "Option",
+                res_copy: "Kopieren",
+                res_save: "Speichern",
+                tooltip_pro: "Pro freischalten für Zugriff"
             }
         };
 
@@ -717,6 +743,18 @@
         initTheme();
         initLanguage(); // Init Language
 
+        // --- DYNAMIC BUTTON TEXT ---
+        function updateGenerateButtonText() {
+            const btnSpan = generateButton.querySelector('span[data-i18n]');
+            if (!btnSpan) return;
+            // Check translation keys based on state
+            const key = avatarToggle.checked ? 'btn_gen' : 'btn_gen_only';
+            btnSpan.setAttribute('data-i18n', key);
+            btnSpan.textContent = t(key);
+        }
+        avatarToggle.addEventListener('change', updateGenerateButtonText);
+        // Initialize button text on load
+        updateGenerateButtonText();
 
         // --- SIDEBAR TOGGLE ---
         function toggleSidebar() {
@@ -874,8 +912,17 @@
                     ${suffix}
                 `;
 
+                if (isDisabled) {
+                    div.addEventListener('mouseenter', (e) => showTooltip(e, t('tooltip_pro')));
+                    div.addEventListener('mouseleave', hideTooltip);
+                }
+
                 div.onclick = (e) => {
-                    if(isDisabled) { openPaymentModal(); return; }
+                    if(isDisabled) { 
+                        hideTooltip();
+                        openPaymentModal(); 
+                        return; 
+                    }
                     select.value = val;
                     updateTrigger(trigger, label, iconPath);
                     renderPlatformOptions(menu, select, trigger);
@@ -913,8 +960,17 @@
 
                 div.innerHTML = `<span class="font-medium">${label}</span>${suffix}`;
                 
+                if (isDisabled) {
+                    div.addEventListener('mouseenter', (e) => showTooltip(e, t('tooltip_pro')));
+                    div.addEventListener('mouseleave', hideTooltip);
+                }
+                
                 div.onclick = (e) => {
-                    if(isDisabled) { openPaymentModal(); return; }
+                    if(isDisabled) { 
+                        hideTooltip();
+                        openPaymentModal(); 
+                        return; 
+                    }
                     select.value = val;
                     select.dispatchEvent(new Event('change')); // Trigger change for listeners
                     updateTrigger(trigger, label, null);
