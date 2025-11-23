@@ -272,7 +272,7 @@ module.exports = async (req, res) => {
         userId = decodedToken.uid; 
 
         // Extract client body data
-        const { mode, currentBio, remixInstruction, niche, tone, goals, length, customLength, platform } = req.body;
+        const { mode, currentBio, remixInstruction, niche, tone, goals, length, customLength, platform, userLanguage, generateAvatar } = req.body;
         
         // 2. INPUT VALIDATION
         if (!niche || !tone || !length || !platform) {
@@ -337,6 +337,17 @@ module.exports = async (req, res) => {
         const sGoals = sanitizeInput(goals);
         const sPlatform = sanitizeInput(platform);
 
+        // Determine Target Language
+        let targetLanguage = 'English';
+        if (userLanguage) {
+            try {
+                const displayNames = new Intl.DisplayNames(['en'], { type: 'language' });
+                targetLanguage = displayNames.of(userLanguage) || userLanguage;
+            } catch (e) {
+                targetLanguage = userLanguage;
+            }
+        }
+
         // --- MODE: REMIX ---
         if (mode === 'remix') {
             if (!currentBio || !remixInstruction) {
@@ -351,6 +362,7 @@ module.exports = async (req, res) => {
             - Niche: ${sNiche}
             - Tone: ${sTone}
             - Platform: ${sPlatform}
+            - Language: ${targetLanguage} (Output must be in this language)
             - Max Length: ${maxLength} characters
             Constraints: Return ONLY the new bio text. Do not explain. Keep it optimized for the platform.`;
 
@@ -370,6 +382,7 @@ module.exports = async (req, res) => {
         Your task is to generate five distinct bio options based on the user's input.
         - Style: The tone must be strictly '${sTone}'.
         - Platform: The bio must be optimized for a '${sPlatform}' audience, including appropriate emojis, keywords, and call-to-actions relevant to that platform.
+        - Language: The output must be written in ${targetLanguage}.
         - Format: Output must be a numbered list (1., 2., 3., 4., 5.). Do NOT include any introductory or concluding text, only the list.
         - Length: Each bio must be concise and strictly adhere to a maximum character count of ${maxLength} characters.`;
 
@@ -399,7 +412,7 @@ module.exports = async (req, res) => {
         // Run both generations
         const [textResult, imageResult] = await Promise.allSettled([
             generateWithRetry(aiPayload),
-            ai.models.generateContent(imagePayload)
+            (generateAvatar !== false) ? ai.models.generateContent(imagePayload) : Promise.resolve(null)
         ]);
         
         // Process Text Result (Mandatory)
@@ -418,7 +431,7 @@ module.exports = async (req, res) => {
 
         // Process Image Result (Optional - fail gracefully)
         let avatarImage = null;
-        if (imageResult.status === 'fulfilled') {
+        if (imageResult.status === 'fulfilled' && imageResult.value) {
             try {
                 const response = imageResult.value;
                 // Iterate to find image part in response candidates
@@ -433,7 +446,7 @@ module.exports = async (req, res) => {
             } catch (e) {
                 console.warn('Failed to extract image data:', e.message);
             }
-        } else {
+        } else if (imageResult.status === 'rejected') {
             console.warn('Avatar generation failed (non-fatal):', imageResult.reason);
         }
 
