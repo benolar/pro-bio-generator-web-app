@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en" class="antialiased">
 <head>
@@ -445,7 +446,8 @@
                 res_opt: "Option",
                 res_copy: "Copy",
                 res_save: "Save",
-                tooltip_pro: "Unlock Pro to access"
+                tooltip_pro: "Unlock Pro to access",
+                tooltip_guest: "Sign in to access"
             },
             es: {
                 new_gen: "Nueva Generación",
@@ -480,7 +482,8 @@
                 res_opt: "Opción",
                 res_copy: "Copiar",
                 res_save: "Guardar",
-                tooltip_pro: "Desbloquear Pro para acceder"
+                tooltip_pro: "Desbloquear Pro para acceder",
+                tooltip_guest: "Inicia sesión para acceder"
             },
             fr: {
                 new_gen: "Nouvelle Génération",
@@ -515,14 +518,15 @@
                 res_opt: "Option",
                 res_copy: "Copier",
                 res_save: "Enregistrer",
-                tooltip_pro: "Débloquer Pro pour accéder"
+                tooltip_pro: "Débloquer Pro pour accéder",
+                tooltip_guest: "Connectez-vous pour accéder"
             },
             pt: {
                 new_gen: "Nova Geração",
                 recent_history: "Histórico Recente",
                 hero_title_1: "Bios de Nicho",
                 hero_title_2: "Instantâneas",
-                hero_desc: "Crie a identidade profissional ou social perfeita em segundos usando IA avançada.",
+                hero_desc: "Crie a identidade profissional o social perfeita em segundos usando IA avançada.",
                 lbl_niche: "Eu sou um...",
                 ph_niche: "ex. Desenvolvedor Web, Vlogger...",
                 lbl_tone: "Tom",
@@ -550,7 +554,8 @@
                 res_opt: "Opção",
                 res_copy: "Copiar",
                 res_save: "Salvar",
-                tooltip_pro: "Desbloquear Pro para acessar"
+                tooltip_pro: "Desbloquear Pro para acessar",
+                tooltip_guest: "Entre para acessar"
             },
             de: {
                 new_gen: "Neue Generierung",
@@ -585,7 +590,8 @@
                 res_opt: "Option",
                 res_copy: "Kopieren",
                 res_save: "Speichern",
-                tooltip_pro: "Pro freischalten für Zugriff"
+                tooltip_pro: "Pro freischalten für Zugriff",
+                tooltip_guest: "Anmelden für Zugriff"
             }
         };
 
@@ -912,8 +918,11 @@
                     ${suffix}
                 `;
 
+                const isAnon = !auth || !auth.currentUser || auth.currentUser.isAnonymous;
+                const tipKey = isAnon ? 'tooltip_guest' : 'tooltip_pro';
+
                 if (isDisabled) {
-                    div.addEventListener('mouseenter', (e) => showTooltip(e, t('tooltip_pro')));
+                    div.addEventListener('mouseenter', (e) => showTooltip(e, t(tipKey)));
                     div.addEventListener('mouseleave', hideTooltip);
                 }
 
@@ -960,8 +969,11 @@
 
                 div.innerHTML = `<span class="font-medium">${label}</span>${suffix}`;
                 
+                const isAnon = !auth || !auth.currentUser || auth.currentUser.isAnonymous;
+                const tipKey = isAnon ? 'tooltip_guest' : 'tooltip_pro';
+
                 if (isDisabled) {
-                    div.addEventListener('mouseenter', (e) => showTooltip(e, t('tooltip_pro')));
+                    div.addEventListener('mouseenter', (e) => showTooltip(e, t(tipKey)));
                     div.addEventListener('mouseleave', hideTooltip);
                 }
                 
