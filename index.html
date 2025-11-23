@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en" class="antialiased">
 <head>
@@ -115,7 +116,7 @@
         <!-- Top Header -->
         <header class="flex items-center justify-between px-6 py-4 bg-white/80 dark:bg-[#1e1f20]/80 backdrop-blur border-b border-gray-100 dark:border-gray-800 z-20 sticky top-0 transition-colors">
             <div class="flex items-center gap-3">
-                <button id="toggle-sidebar-btn" class="md:hidden p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                <button id="toggle-sidebar-btn" class="p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                 </button>
                 <h1 class="text-lg font-bold text-gray-800 dark:text-white tracking-tight hidden sm:block">Pro Bio Generator <span class="text-[10px] font-normal text-gray-400 dark:text-gray-500 ml-2 px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-700">v2.3</span></h1>
@@ -752,12 +753,30 @@
         updateGenerateButtonText();
 
         // --- SIDEBAR TOGGLE ---
+        let isSidebarOpen = window.innerWidth >= 768;
+
         function toggleSidebar() {
-            const isClosed = sidebar.classList.contains('-translate-x-full');
-            if (isClosed) {
-                sidebar.classList.remove('-translate-x-full');
+            const isMobile = window.innerWidth < 768;
+            const main = document.querySelector('main');
+
+            if (isMobile) {
+                const isClosed = sidebar.classList.contains('-translate-x-full');
+                if (isClosed) {
+                    sidebar.classList.remove('-translate-x-full');
+                } else {
+                    sidebar.classList.add('-translate-x-full');
+                }
             } else {
-                sidebar.classList.add('-translate-x-full');
+                // Desktop Toggle
+                if (isSidebarOpen) {
+                    sidebar.classList.remove('md:translate-x-0');
+                    main.classList.remove('md:ml-72');
+                    isSidebarOpen = false;
+                } else {
+                    sidebar.classList.add('md:translate-x-0');
+                    main.classList.add('md:ml-72');
+                    isSidebarOpen = true;
+                }
             }
         }
         toggleSidebarBtn.addEventListener('click', toggleSidebar);
@@ -1002,13 +1021,13 @@
                 submitBtn.textContent = isAnon ? "Link Email" : "Sign Up";
                 modeMsg.textContent = "Already have an account?";
                 toggleAuthModeBtn.textContent = "Sign In";
-                googleBtnText.textContent = isAnon ? "Link with Google" : "Sign up with Google";
+                googleAuthBtn.querySelector('span').textContent = isAnon ? "Link with Google" : "Sign up with Google";
             } else {
                 title.textContent = "Sign In";
                 submitBtn.textContent = "Sign In";
                 modeMsg.textContent = "Don't have an account?";
                 toggleAuthModeBtn.textContent = "Create one";
-                googleBtnText.textContent = "Sign in with Google";
+                googleAuthBtn.querySelector('span').textContent = "Sign in with Google";
             }
         }
         closeAuthModalBtn.onclick = closeAuthModal;
@@ -1091,7 +1110,20 @@
                     userId = user.uid;
                     isAuthReady = true;
                     updateAuthUI(user);
-                    loadHistory();
+
+                    if (user.isAnonymous) {
+                        // Clear data on refresh/load for guest
+                        nicheInput.value = '';
+                        goalsInput.value = '';
+                        outputArea.classList.add('hidden');
+                        heroSection.classList.remove('hidden');
+                        
+                        // Show Guest History Card
+                        renderGuestHistory();
+                    } else {
+                        loadHistory();
+                    }
+                    
                     listenToProStatus();
                 }
             });
@@ -1177,6 +1209,8 @@
 
         // --- HISTORY LOGIC ---
         function loadHistory() {
+            if(auth.currentUser && auth.currentUser.isAnonymous) return; // Safety check
+
             const historyRef = collection(db, `artifacts/${appId}/users/${userId}/bios`);
             const q = query(historyRef, limit(50));
             
@@ -1186,6 +1220,21 @@
                 allHistoryBios.sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
                 renderHistory(allHistoryBios);
             });
+        }
+
+        function renderGuestHistory() {
+            historyList.innerHTML = `
+                <div class="mx-2 mt-10 p-5 bg-white dark:bg-[#252627] rounded-xl border border-gray-200 dark:border-gray-700 text-center shadow-sm flex flex-col items-center">
+                    <div class="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mb-3">
+                        <svg class="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                    </div>
+                    <h4 class="text-sm font-bold text-gray-900 dark:text-white mb-2">Sign in to start saving your chats</h4>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4 leading-relaxed">Once you're signed in, you can access your recent chats here.</p>
+                    <button id="guest-history-login-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2.5 rounded-lg transition-colors shadow-md">Sign In / Sign Up</button>
+                </div>
+            `;
+            const btn = document.getElementById('guest-history-login-btn');
+            if(btn) btn.onclick = () => openAuthModal(true);
         }
 
         function renderHistory(bios) {
@@ -1443,6 +1492,13 @@
                 };
 
                 div.querySelector('.save-btn').onclick = async (e) => {
+                    // Check if guest
+                    if (auth.currentUser && auth.currentUser.isAnonymous) {
+                        showMessage("Sign in to save your bio", true);
+                        openAuthModal(true);
+                        return;
+                    }
+
                     const btn = e.currentTarget;
                     const currentBio = btn.closest('.bio-card-container').getAttribute('data-current-bio');
                     if(btn.textContent.includes(t('res_save') + 'd')) return;
