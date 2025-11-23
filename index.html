@@ -896,7 +896,7 @@
                 const label = labelKey ? t(labelKey) : val;
 
                 const div = document.createElement('div');
-                div.className = `flex items-center px-3 py-2.5 cursor-pointer text-sm transition-colors ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-50 dark:hover:bg-[#2c2d2e] text-gray-700 dark:text-gray-200'} ${isDisabled ? 'opacity-75' : ''}`;
+                div.className = `flex items-center px-3 py-2.5 text-sm transition-colors ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-50 dark:hover:bg-[#2c2d2e] text-gray-700 dark:text-gray-200'} ${isDisabled ? 'opacity-75 cursor-not-allowed' : 'cursor-pointer'}`;
                 
                 let suffix = '';
                 if(isProOpt) {
@@ -952,7 +952,7 @@
                 const label = t(labelMap[val] || val);
 
                 const div = document.createElement('div');
-                div.className = `flex items-center px-3 py-2.5 cursor-pointer text-sm transition-colors ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-50 dark:hover:bg-[#2c2d2e] text-gray-700 dark:text-gray-200'} ${isDisabled ? 'opacity-75' : ''}`;
+                div.className = `flex items-center px-3 py-2.5 text-sm transition-colors ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-50 dark:hover:bg-[#2c2d2e] text-gray-700 dark:text-gray-200'} ${isDisabled ? 'opacity-75 cursor-not-allowed' : 'cursor-pointer'}`;
                 
                 let suffix = isProOpt 
                     ? (isDisabled ? `<div class="ml-auto flex items-center gap-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-500 text-[10px] font-bold px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">${LOCK_ICON} PRO</div>` : `<div class="ml-auto bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold px-1.5 py-0.5 rounded border border-green-200 dark:border-green-800">FREE</div>`)
