@@ -1,5 +1,4 @@
 
-
 <!DOCTYPE html>
 <html lang="en" class="antialiased">
 <head>
@@ -445,9 +444,7 @@
                 len_custom: "Custom (Pro)",
                 res_opt: "Option",
                 res_copy: "Copy",
-                res_save: "Save",
-                tooltip_pro: "Unlock Pro to access",
-                tooltip_guest: "Sign in to access"
+                res_save: "Save"
             },
             es: {
                 new_gen: "Nueva Generación",
@@ -481,9 +478,7 @@
                 len_custom: "Personalizado",
                 res_opt: "Opción",
                 res_copy: "Copiar",
-                res_save: "Guardar",
-                tooltip_pro: "Desbloquear Pro para acceder",
-                tooltip_guest: "Inicia sesión para acceder"
+                res_save: "Guardar"
             },
             fr: {
                 new_gen: "Nouvelle Génération",
@@ -517,16 +512,14 @@
                 len_custom: "Personnalisé",
                 res_opt: "Option",
                 res_copy: "Copier",
-                res_save: "Enregistrer",
-                tooltip_pro: "Débloquer Pro pour accéder",
-                tooltip_guest: "Connectez-vous pour accéder"
+                res_save: "Enregistrer"
             },
             pt: {
                 new_gen: "Nova Geração",
                 recent_history: "Histórico Recente",
                 hero_title_1: "Bios de Nicho",
                 hero_title_2: "Instantâneas",
-                hero_desc: "Crie a identidade profissional o social perfeita em segundos usando IA avançada.",
+                hero_desc: "Crie a identidade profissional ou social perfeita em segundos usando IA avançada.",
                 lbl_niche: "Eu sou um...",
                 ph_niche: "ex. Desenvolvedor Web, Vlogger...",
                 lbl_tone: "Tom",
@@ -553,9 +546,7 @@
                 len_custom: "Personalizado",
                 res_opt: "Opção",
                 res_copy: "Copiar",
-                res_save: "Salvar",
-                tooltip_pro: "Desbloquear Pro para acessar",
-                tooltip_guest: "Entre para acessar"
+                res_save: "Salvar"
             },
             de: {
                 new_gen: "Neue Generierung",
@@ -589,9 +580,7 @@
                 len_custom: "Benutzerdefiniert",
                 res_opt: "Option",
                 res_copy: "Kopieren",
-                res_save: "Speichern",
-                tooltip_pro: "Pro freischalten für Zugriff",
-                tooltip_guest: "Anmelden für Zugriff"
+                res_save: "Speichern"
             }
         };
 
@@ -902,7 +891,7 @@
                 const label = labelKey ? t(labelKey) : val;
 
                 const div = document.createElement('div');
-                div.className = `flex items-center px-3 py-2.5 text-sm transition-colors ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-50 dark:hover:bg-[#2c2d2e] text-gray-700 dark:text-gray-200'} ${isDisabled ? 'opacity-75 cursor-not-allowed' : 'cursor-pointer'}`;
+                div.className = `flex items-center px-3 py-2.5 cursor-pointer text-sm transition-colors ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-50 dark:hover:bg-[#2c2d2e] text-gray-700 dark:text-gray-200'} ${isDisabled ? 'opacity-75' : ''}`;
                 
                 let suffix = '';
                 if(isProOpt) {
@@ -918,20 +907,8 @@
                     ${suffix}
                 `;
 
-                const isAnon = !auth || !auth.currentUser || auth.currentUser.isAnonymous;
-                const tipKey = isAnon ? 'tooltip_guest' : 'tooltip_pro';
-
-                if (isDisabled) {
-                    div.addEventListener('mouseenter', (e) => showTooltip(e, t(tipKey)));
-                    div.addEventListener('mouseleave', hideTooltip);
-                }
-
                 div.onclick = (e) => {
-                    if(isDisabled) { 
-                        hideTooltip();
-                        openPaymentModal(); 
-                        return; 
-                    }
+                    if(isDisabled) { openPaymentModal(); return; }
                     select.value = val;
                     updateTrigger(trigger, label, iconPath);
                     renderPlatformOptions(menu, select, trigger);
@@ -961,7 +938,7 @@
                 const label = t(labelMap[val] || val);
 
                 const div = document.createElement('div');
-                div.className = `flex items-center px-3 py-2.5 text-sm transition-colors ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-50 dark:hover:bg-[#2c2d2e] text-gray-700 dark:text-gray-200'} ${isDisabled ? 'opacity-75 cursor-not-allowed' : 'cursor-pointer'}`;
+                div.className = `flex items-center px-3 py-2.5 cursor-pointer text-sm transition-colors ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-50 dark:hover:bg-[#2c2d2e] text-gray-700 dark:text-gray-200'} ${isDisabled ? 'opacity-75' : ''}`;
                 
                 let suffix = isProOpt 
                     ? (isDisabled ? `<div class="ml-auto flex items-center gap-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-500 text-[10px] font-bold px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">${LOCK_ICON} PRO</div>` : `<div class="ml-auto bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold px-1.5 py-0.5 rounded border border-green-200 dark:border-green-800">FREE</div>`)
@@ -969,20 +946,8 @@
 
                 div.innerHTML = `<span class="font-medium">${label}</span>${suffix}`;
                 
-                const isAnon = !auth || !auth.currentUser || auth.currentUser.isAnonymous;
-                const tipKey = isAnon ? 'tooltip_guest' : 'tooltip_pro';
-
-                if (isDisabled) {
-                    div.addEventListener('mouseenter', (e) => showTooltip(e, t(tipKey)));
-                    div.addEventListener('mouseleave', hideTooltip);
-                }
-                
                 div.onclick = (e) => {
-                    if(isDisabled) { 
-                        hideTooltip();
-                        openPaymentModal(); 
-                        return; 
-                    }
+                    if(isDisabled) { openPaymentModal(); return; }
                     select.value = val;
                     select.dispatchEvent(new Event('change')); // Trigger change for listeners
                     updateTrigger(trigger, label, null);
@@ -1054,7 +1019,7 @@
         function openPaymentModal() {
              // Check if user is logged in (not anonymous) before allowing unlock
              if (!auth.currentUser || auth.currentUser.isAnonymous) {
-                 showMessage("Please sign in/up to unlock Pro.", true);
+                 showMessage("Please sign in to unlock Pro.", true);
                  openAuthModal(true); // Open registration/link modal
                  return;
              }
