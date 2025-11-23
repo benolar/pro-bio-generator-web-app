@@ -1019,7 +1019,7 @@
         function openPaymentModal() {
              // Check if user is logged in (not anonymous) before allowing unlock
              if (!auth.currentUser || auth.currentUser.isAnonymous) {
-                 showMessage("Please sign in to unlock Pro.", true);
+                 showMessage("Please sign up to unlock Pro.", true);
                  openAuthModal(true); // Open registration/link modal
                  return;
              }
