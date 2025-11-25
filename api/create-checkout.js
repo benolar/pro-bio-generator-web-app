@@ -95,7 +95,7 @@ module.exports = async (req, res) => {
     try {
         validateInput(userId, originUrl);
 
-        const tx_ref = `BIO-PRO-${Date.now()}-${userId.substring(0, 8)}`;
+        const tx_ref = `V5-BIO-${Date.now()}-${userId.substring(0, 8)}`;
         
         if (!TRUSTED_APP_ID) {
             console.warn(`Using fallback app ID (default-app-id) for user ${userId} transaction ${tx_ref}`);
@@ -107,7 +107,7 @@ module.exports = async (req, res) => {
             currency: CURRENCY,
             redirect_url: `${originUrl}?payment=success&tx_ref=${tx_ref}`,
             customer: {
-                email: "anonuser@biogen.com",
+                email: "anonuser@vellumfive.com",
                 phonenumber: "0000000000",
                 name: userId, 
             },
@@ -117,8 +117,8 @@ module.exports = async (req, res) => {
                 tx_ref: tx_ref
             },
             customizations: {
-                title: "Pro Bio Generator Unlock",
-                description: "One-time lifetime Pro access.",
+                title: "VellumFive BioGenerator Pro",
+                description: "1-Year Pro Access",
             }
         };
 
