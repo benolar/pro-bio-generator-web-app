@@ -1,8 +1,8 @@
 // Vercel Serverless Function: api/webhook.js
 // This function handles incoming webhooks from Flutterwave for successful payments.
 
-const firebaseAdmin = require('firebase-admin');
-const crypto = require('crypto');
+import firebaseAdmin from 'firebase-admin';
+import crypto from 'crypto';
 
 // IMPORTANT: Vercel serverless functions need this to read the raw body for signature verification.
 export const config = {
@@ -83,7 +83,7 @@ async function recordWebhookFailure(appId, transactionId, reason) {
     }
 }
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).send('Method Not Allowed');
     }

@@ -1,5 +1,5 @@
 // Initialize Firebase Admin (safe single-init)
-const admin = require('firebase-admin');
+import admin from 'firebase-admin';
 
 if (!admin.apps.length) {
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
@@ -29,7 +29,7 @@ async function updateProStatusInFirestore(userId, appId, transactionId) {
 }
 
 // Main handler (uses verifyTransaction flow)
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
     // We expect the transaction ID from the client-side redirect query parameters
     const { tx_ref: txRef, transaction_id } = req.query; // Check both standard params
     const transactionId = transaction_id || txRef;
@@ -82,4 +82,4 @@ module.exports = async (req, res) => {
         console.error('verify-payment error', error);
         return res.status(500).json({ error: error.message || 'Internal error' });
     }
-};
+}

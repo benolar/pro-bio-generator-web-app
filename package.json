@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Serverless function for bio generation using the Gemini API.",
   "main": "api/generate-bio.js",
+  "type": "module",
   "scripts": {
     "start": "node api/generate-bio.js",
     "build": "mkdir -p public && cp ./index.html ./public/ && tailwindcss -i ./input.css -o ./public/output.css"

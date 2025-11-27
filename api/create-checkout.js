@@ -12,7 +12,7 @@ if (!TRUSTED_APP_ID) {
     console.error('Invalid SECURE_APP_ID format. Must be 3-64 characters of [a-zA-Z0-9-_]');
 }
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
     // Add request timeout
     const TIMEOUT = 30000;
     const timeoutPromise = new Promise((_, reject) => 
@@ -95,7 +95,7 @@ module.exports = async (req, res) => {
     try {
         validateInput(userId, originUrl);
 
-        const tx_ref = `V5-BIO-${Date.now()}-${userId.substring(0, 8)}`;
+        const tx_ref = `BIO-PRO-${Date.now()}-${userId.substring(0, 8)}`;
         
         if (!TRUSTED_APP_ID) {
             console.warn(`Using fallback app ID (default-app-id) for user ${userId} transaction ${tx_ref}`);
@@ -107,7 +107,7 @@ module.exports = async (req, res) => {
             currency: CURRENCY,
             redirect_url: `${originUrl}?payment=success&tx_ref=${tx_ref}`,
             customer: {
-                email: "anonuser@vellumfive.com",
+                email: "anonuser@biogen.com",
                 phonenumber: "0000000000",
                 name: userId, 
             },
@@ -117,8 +117,8 @@ module.exports = async (req, res) => {
                 tx_ref: tx_ref
             },
             customizations: {
-                title: "VellumFive BioGenerator Pro",
-                description: "1-Year Pro Access",
+                title: "Pro Bio Generator Unlock",
+                description: "One-time lifetime Pro access.",
             }
         };
 

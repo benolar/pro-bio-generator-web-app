@@ -1,8 +1,6 @@
-
-
-const { GoogleGenAI } = require('@google/genai');
-const admin = require('firebase-admin');
-const { createClient } = require('@vercel/kv'); 
+import { GoogleGenAI } from "@google/genai";
+import admin from 'firebase-admin';
+import { createClient } from '@vercel/kv';
 
 // --- 1. FIREBASE ADMIN SDK INITIALIZATION ---
 
@@ -37,7 +35,8 @@ if (process.env.BGNRT_KV_REST_API_URL && process.env.BGNRT_KV_REST_API_TOKEN) {
     kv = null;
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Guideline compliance: Use process.env.API_KEY directly
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const MODEL_NAME = 'gemini-2.5-flash';
 const IMAGE_MODEL_NAME = 'gemini-2.5-flash-image';
 
@@ -255,11 +254,12 @@ async function generateWithRetry(payload, maxRetries = 3) {
 
 // --- 4. MAIN SERVERLESS HANDLER ---
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
-    if (!process.env.GEMINI_API_KEY || !admin.apps.length) {
+    // Check for API_KEY specifically per guidelines
+    if (!process.env.API_KEY || !admin.apps.length) {
         return res.status(503).json({ error: 'Server configuration error: AI or Database service unavailable.' });
     }
 
@@ -486,4 +486,4 @@ module.exports = async (req, res) => {
         
         res.status(status).json({ error: errorMessage });
     }
-};
+}
