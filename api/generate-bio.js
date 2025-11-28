@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import admin from 'firebase-admin';
 import { createClient } from '@vercel/kv';
 
@@ -383,7 +383,7 @@ export default async function handler(req, res) {
         - Style: The tone must be strictly '${sTone}'.
         - Platform: The bio must be optimized for a '${sPlatform}' audience, including appropriate emojis, keywords, and call-to-actions relevant to that platform.
         - Language: The output must be written in ${targetLanguage}.
-        - Format: Output must be a numbered list (1., 2., 3., 4., 5.). Do NOT include any introductory or concluding text, only the list.
+        - Format: Output must be a JSON Array of strings.
         - Length: Each bio must be concise and strictly adhere to a maximum character count of ${maxLength} characters.`;
 
         const userQuery = `My niche/role is: ${sNiche}. My key goals/keywords are: ${sGoals}.`;
@@ -393,7 +393,12 @@ export default async function handler(req, res) {
             contents: userQuery,
             config: {
                 systemInstruction: systemPrompt,
-                temperature: 0.8
+                temperature: 0.8,
+                responseMimeType: 'application/json',
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING }
+                }
             }
         };
 
@@ -416,16 +421,26 @@ export default async function handler(req, res) {
         ]);
         
         // Process Text Result (Mandatory)
-        let text = "";
+        let bios = [];
         if (textResult.status === 'fulfilled') {
-            text = textResult.value.text;
+            try {
+                bios = JSON.parse(textResult.value.text);
+                if (!Array.isArray(bios)) {
+                    // Fallback if model returns object instead of array
+                    console.warn("AI returned non-array JSON", textResult.value.text);
+                    bios = [];
+                }
+            } catch (e) {
+                console.error('JSON Parsing failed for bios:', e, textResult.value.text);
+                throw new Error("Failed to parse bio results.");
+            }
         } else {
             console.error('Text generation failed:', textResult.reason);
             throw textResult.reason;
         }
 
-        if (!text) {
-            console.error('AI generation returned an empty text response.');
+        if (!bios || bios.length === 0) {
+            console.error('AI generation returned empty bios.');
             return res.status(500).json({ error: 'AI failed to generate content. Try a simpler niche.' });
         }
 
@@ -451,7 +466,7 @@ export default async function handler(req, res) {
         }
 
         // 8. Success
-        res.status(200).json({ text, avatarImage });
+        res.status(200).json({ bios, avatarImage });
 
     } catch (error) {
         console.error(`Request failed for user ${userId || 'unknown'}:`, error);
