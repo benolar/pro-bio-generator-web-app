@@ -975,16 +975,27 @@
         const platformMenu = document.getElementById('platform-menu');
         const lengthTrigger = document.getElementById('length-trigger');
         const lengthMenu = document.getElementById('length-menu');
+        const toneTrigger = document.getElementById('tone-trigger');
+        const toneMenu = document.getElementById('tone-menu');
+
+        const TONE_ICONS = {
+            'Professional & Authoritative': '<path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"/>',
+            'Witty & Humorous': '<path d="M7 2v11h3v9l7-12h-4l4-8z"/>',
+            'Friendly & Approachable': '<path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>',
+            'Minimalist & Concise': '<path d="M19 13H5v-2h14v2z"/>'
+        };
 
         // Init function called once on load
         function initCustomDropdowns() {
             setupDropdownListener(platformTrigger, platformMenu, platformSelect, renderPlatformOptions);
             setupDropdownListener(lengthTrigger, lengthMenu, lengthSelect, renderLengthOptions);
+            setupDropdownListener(toneTrigger, toneMenu, toneSelect, renderToneOptions);
             
             // Setup global closer once
             document.addEventListener('click', (e) => {
                 if(!platformTrigger.contains(e.target) && !platformMenu.contains(e.target)) platformMenu.classList.add('hidden');
                 if(!lengthTrigger.contains(e.target) && !lengthMenu.contains(e.target)) lengthMenu.classList.add('hidden');
+                if(!toneTrigger.contains(e.target) && !toneMenu.contains(e.target)) toneMenu.classList.add('hidden');
             });
 
             // Initial Render
@@ -995,6 +1006,7 @@
         function refreshDropdownsUI() {
             renderPlatformOptions(platformMenu, platformSelect, platformTrigger);
             renderLengthOptions(lengthMenu, lengthSelect, lengthTrigger);
+            renderToneOptions(toneMenu, toneSelect, toneTrigger);
         }
 
         function setupDropdownListener(trigger, menu, select, renderFn) {
@@ -1012,25 +1024,16 @@
         function closeAllDropdowns() {
             platformMenu.classList.add('hidden');
             lengthMenu.classList.add('hidden');
+            toneMenu.classList.add('hidden');
         }
 
         function renderSignInCTA(menu) {
-             const cta = document.createElement('div');
-             cta.className = 'm-2 p-4 bg-gray-50 dark:bg-[#151616] rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm';
-             cta.innerHTML = `
-                <div class="text-sm font-bold text-gray-900 dark:text-white mb-1">Sign in to explore</div>
-                <div class="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed">Unlock advanced platforms, tones, and custom lengths.</div>
-                <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded-lg transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-[#1e1f20]">Sign In</button>
-             `;
-             cta.querySelector('button').onclick = (e) => {
-                 e.stopPropagation();
-                 openAuthModal(false);
-                 closeAllDropdowns();
-             };
+<!-- ... (rest of file content remains unchanged, appending renderToneOptions) ... -->
              menu.appendChild(cta);
         }
 
         function renderPlatformOptions(menu, select, trigger) {
+            // ... (existing code for renderPlatformOptions) ...
             menu.innerHTML = '';
             
             // Add Header
@@ -1099,6 +1102,7 @@
         }
 
         function renderLengthOptions(menu, select, trigger) {
+             // ... (existing code for renderLengthOptions) ...
             menu.innerHTML = '';
             
             // Add Header
@@ -1158,6 +1162,58 @@
                  'short': 'len_short', 'medium': 'len_medium', 'fixed-long': 'len_long', 'custom': 'len_custom'
             };
             updateTrigger(trigger, t(labelMap[currentOpt.value]), null);
+        }
+
+        function renderToneOptions(menu, select, trigger) {
+             menu.innerHTML = '';
+             // Header
+             const header = document.createElement('div');
+             header.className = 'px-3 py-2 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider bg-gray-50/50 dark:bg-[#252627]/50 border-b border-gray-100 dark:border-gray-800 mb-1';
+             header.textContent = "Choose Tone";
+             menu.appendChild(header);
+
+             Array.from(select.options).forEach(opt => {
+                const val = opt.value;
+                const isSelected = opt.selected;
+                const iconPath = TONE_ICONS[val];
+                // Translation keys
+                const labelMap = {
+                    'Professional & Authoritative': 'tone_prof', 
+                    'Witty & Humorous': 'tone_witty',
+                    'Friendly & Approachable': 'tone_friendly',
+                    'Minimalist & Concise': 'tone_min'
+                };
+                const label = t(labelMap[val] || val);
+
+                const div = document.createElement('div');
+                div.className = `flex items-center px-3 py-2.5 cursor-pointer text-sm transition-colors ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-50 dark:hover:bg-[#2c2d2e] text-gray-700 dark:text-gray-200'}`;
+                
+                div.innerHTML = `
+                    <div class="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mr-3 text-gray-600 dark:text-gray-300">
+                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">${iconPath}</svg>
+                    </div>
+                    <span class="font-medium">${label}</span>
+                `;
+
+                div.onclick = (e) => {
+                    select.value = val;
+                    updateTrigger(trigger, label, iconPath);
+                    renderToneOptions(menu, select, trigger);
+                    closeAllDropdowns();
+                };
+                menu.appendChild(div);
+             });
+             
+             // Init Trigger
+             const currentOpt = select.options[select.selectedIndex];
+             const labelMap = {
+                'Professional & Authoritative': 'tone_prof', 
+                'Witty & Humorous': 'tone_witty',
+                'Friendly & Approachable': 'tone_friendly',
+                'Minimalist & Concise': 'tone_min'
+             };
+             const triggerLabel = t(labelMap[currentOpt.value] || currentOpt.value);
+             updateTrigger(trigger, triggerLabel, TONE_ICONS[currentOpt.value]);
         }
 
         function updateTrigger(trigger, text, iconPath) {
