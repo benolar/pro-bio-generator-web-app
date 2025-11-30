@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en" class="antialiased">
 <head>
@@ -163,7 +164,7 @@
             <div class="flex items-center gap-3">
                 <!-- Auth Buttons (Guest Only) -->
                 <div id="header-auth-buttons" class="hidden items-center gap-2 mr-2">
-                    <button id="header-login-btn" class="text-xs font-bold text-white bg-gray-900 dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 transition-all px-4 py-2 rounded-lg shadow-sm active:scale-95">Log in</button>
+                    <button id="header-login-btn" class="text-xs font-bold bg-white dark:bg-[#1e1f20] text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-[#2c2d2e] shadow-sm px-4 py-2 rounded-full transition-all active:scale-95">Log in</button>
                     <button id="header-signup-btn" class="hidden sm:block text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-full transition-all shadow-lg shadow-indigo-200 dark:shadow-none hover:shadow-indigo-300 active:scale-95">Sign up</button>
                 </div>
 
@@ -848,18 +849,14 @@
         }
         toggleSidebarBtn.addEventListener('click', toggleSidebar);
         closeSidebarBtn.addEventListener('click', toggleSidebar);
-        
-        // FEATURE: Click outside to close sidebar (Mobile)
-        document.addEventListener('click', (e) => {
-            const isMobile = window.innerWidth < 768;
-            if (!isMobile) return;
 
-            const isSidebarVisible = !sidebar.classList.contains('-translate-x-full');
-            const isClickInsideSidebar = sidebar.contains(e.target);
-            const isClickOnToggle = toggleSidebarBtn.contains(e.target);
-            
-            if (isSidebarVisible && !isClickInsideSidebar && !isClickOnToggle) {
-                sidebar.classList.add('-translate-x-full');
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth < 768 && 
+                !sidebar.classList.contains('-translate-x-full') && 
+                !sidebar.contains(e.target) && 
+                !toggleSidebarBtn.contains(e.target)) {
+                toggleSidebar();
             }
         });
 
@@ -1496,8 +1493,6 @@
         }
         
         function updateProUI() {
-            const isGuest = !auth.currentUser || auth.currentUser.isAnonymous;
-
             if(isPro) {
                 topProStatus.classList.remove('hidden');
                 topProStatus.classList.add('flex');
@@ -1506,11 +1501,11 @@
                 topProStatus.classList.add('hidden');
                 topProStatus.classList.remove('flex');
                 
-                // Change: Hide unlock button for guests
-                if (isGuest) {
-                    topUnlockBtn.classList.add('hidden');
+                // Show Unlock button only if user is NOT anonymous
+                if (auth.currentUser && !auth.currentUser.isAnonymous) {
+                     topUnlockBtn.classList.remove('hidden');
                 } else {
-                    topUnlockBtn.classList.remove('hidden');
+                     topUnlockBtn.classList.add('hidden');
                 }
             }
 
