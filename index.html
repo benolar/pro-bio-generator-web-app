@@ -976,12 +976,28 @@
         const lengthTrigger = document.getElementById('length-trigger');
         const lengthMenu = document.getElementById('length-menu');
 
+        // Init function called once on load
         function initCustomDropdowns() {
-            setupDropdown(platformTrigger, platformMenu, platformSelect, renderPlatformOptions);
-            setupDropdown(lengthTrigger, lengthMenu, lengthSelect, renderLengthOptions);
+            setupDropdownListener(platformTrigger, platformMenu, platformSelect, renderPlatformOptions);
+            setupDropdownListener(lengthTrigger, lengthMenu, lengthSelect, renderLengthOptions);
+            
+            // Setup global closer once
+            document.addEventListener('click', (e) => {
+                if(!platformTrigger.contains(e.target) && !platformMenu.contains(e.target)) platformMenu.classList.add('hidden');
+                if(!lengthTrigger.contains(e.target) && !lengthMenu.contains(e.target)) lengthMenu.classList.add('hidden');
+            });
+
+            // Initial Render
+            refreshDropdownsUI();
         }
 
-        function setupDropdown(trigger, menu, select, renderFn) {
+        // Helper to refresh UI without adding listeners (called by Pro update)
+        function refreshDropdownsUI() {
+            renderPlatformOptions(platformMenu, platformSelect, platformTrigger);
+            renderLengthOptions(lengthMenu, lengthSelect, lengthTrigger);
+        }
+
+        function setupDropdownListener(trigger, menu, select, renderFn) {
             trigger.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const isHidden = menu.classList.contains('hidden');
@@ -991,10 +1007,6 @@
                     menu.classList.remove('hidden');
                 }
             });
-            document.addEventListener('click', (e) => {
-                if(!trigger.contains(e.target) && !menu.contains(e.target)) menu.classList.add('hidden');
-            });
-            renderFn(menu, select, trigger);
         }
 
         function closeAllDropdowns() {
@@ -1591,7 +1603,7 @@
             const isCustom = lengthSelect.value === 'custom' && isPro;
             customLengthGroup.classList.toggle('hidden', !isCustom);
 
-            initCustomDropdowns(); // Refresh dropdowns UI
+            refreshDropdownsUI(); // Refresh dropdowns UI using the helper
         }
 
         lengthSelect.addEventListener('change', () => {
