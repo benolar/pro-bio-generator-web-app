@@ -986,7 +986,10 @@
                 e.stopPropagation();
                 const isHidden = menu.classList.contains('hidden');
                 closeAllDropdowns();
-                if(isHidden) menu.classList.remove('hidden');
+                if(isHidden) {
+                    renderFn(menu, select, trigger);
+                    menu.classList.remove('hidden');
+                }
             });
             document.addEventListener('click', (e) => {
                 if(!trigger.contains(e.target) && !menu.contains(e.target)) menu.classList.add('hidden');
@@ -999,21 +1002,53 @@
             lengthMenu.classList.add('hidden');
         }
 
+        function renderSignInCTA(menu) {
+             const cta = document.createElement('div');
+             cta.className = 'm-2 p-4 bg-gray-50 dark:bg-[#151616] rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm';
+             cta.innerHTML = `
+                <div class="text-sm font-bold text-gray-900 dark:text-white mb-1">Sign in to explore</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed">Unlock advanced platforms, tones, and custom lengths.</div>
+                <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded-lg transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-[#1e1f20]">Sign In</button>
+             `;
+             cta.querySelector('button').onclick = (e) => {
+                 e.stopPropagation();
+                 openAuthModal(false);
+                 closeAllDropdowns();
+             };
+             menu.appendChild(cta);
+        }
+
         function renderPlatformOptions(menu, select, trigger) {
             menu.innerHTML = '';
+            
+            // Add Header
+            const header = document.createElement('div');
+            header.className = 'px-3 py-2 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider bg-gray-50/50 dark:bg-[#252627]/50 border-b border-gray-100 dark:border-gray-800 mb-1';
+            header.textContent = "Choose Platform";
+            menu.appendChild(header);
+
+            const isAnon = auth && auth.currentUser && auth.currentUser.isAnonymous;
+            let proOptionShown = false;
+
             Array.from(select.options).forEach(opt => {
                 const val = opt.value;
                 const isProOpt = opt.dataset.pro === 'true';
+                
+                // If anonymous, limit displayed Pro options
+                if (isAnon && isProOpt) {
+                    if (proOptionShown) return; // Skip subsequent pro options
+                    proOptionShown = true;
+                }
+
                 const isDisabled = opt.disabled;
                 const isSelected = opt.selected;
                 const iconPath = PLATFORM_ICONS[val] || PLATFORM_ICONS['General'];
                 
-                // Translate Display Label
                 const labelKey = val === 'General' ? 'plat_general' : null;
                 const label = labelKey ? t(labelKey) : val;
 
                 const div = document.createElement('div');
-                div.className = `flex items-center px-3 py-2.5 cursor-pointer text-sm transition-colors ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-50 dark:hover:bg-[#2c2d2e] text-gray-700 dark:text-gray-200'} ${isDisabled ? 'opacity-75' : ''}`;
+                div.className = `flex items-center px-3 py-2.5 cursor-pointer text-sm transition-colors ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-50 dark:hover:bg-[#2c2d2e] text-gray-700 dark:text-gray-200'} ${isDisabled ? 'opacity-50 grayscale' : ''}`;
                 
                 let suffix = '';
                 if(isProOpt) {
@@ -1030,7 +1065,11 @@
                 `;
 
                 div.onclick = (e) => {
-                    if(isDisabled) { openPaymentModal(); return; }
+                    if(isDisabled) { 
+                        if (isAnon) openAuthModal(false);
+                        else openPaymentModal(); 
+                        return; 
+                    }
                     select.value = val;
                     updateTrigger(trigger, label, iconPath);
                     renderPlatformOptions(menu, select, trigger);
@@ -1038,29 +1077,46 @@
                 };
                 menu.appendChild(div);
             });
-            // Init trigger
+
+            if (isAnon) renderSignInCTA(menu);
+            
+            // Init trigger text
             const currentOpt = select.options[select.selectedIndex];
-            // Recalculate label for trigger update
             const triggerLabel = currentOpt.value === 'General' ? t('plat_general') : currentOpt.value;
             updateTrigger(trigger, triggerLabel, PLATFORM_ICONS[currentOpt.value] || PLATFORM_ICONS['General']);
         }
 
         function renderLengthOptions(menu, select, trigger) {
             menu.innerHTML = '';
+            
+            // Add Header
+            const header = document.createElement('div');
+            header.className = 'px-3 py-2 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider bg-gray-50/50 dark:bg-[#252627]/50 border-b border-gray-100 dark:border-gray-800 mb-1';
+            header.textContent = "Choose Length";
+            menu.appendChild(header);
+
+            const isAnon = auth && auth.currentUser && auth.currentUser.isAnonymous;
+            let proOptionShown = false;
+
             Array.from(select.options).forEach(opt => {
                 const val = opt.value;
                 const isProOpt = opt.dataset.pro === 'true';
+                
+                if (isAnon && isProOpt) {
+                    if (proOptionShown) return;
+                    proOptionShown = true;
+                }
+
                 const isDisabled = opt.disabled;
                 const isSelected = opt.selected;
                 
-                // Translate Label
                 const labelMap = {
                     'short': 'len_short', 'medium': 'len_medium', 'fixed-long': 'len_long', 'custom': 'len_custom'
                 };
                 const label = t(labelMap[val] || val);
 
                 const div = document.createElement('div');
-                div.className = `flex items-center px-3 py-2.5 cursor-pointer text-sm transition-colors ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-50 dark:hover:bg-[#2c2d2e] text-gray-700 dark:text-gray-200'} ${isDisabled ? 'opacity-75' : ''}`;
+                div.className = `flex items-center px-3 py-2.5 cursor-pointer text-sm transition-colors ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-50 dark:hover:bg-[#2c2d2e] text-gray-700 dark:text-gray-200'} ${isDisabled ? 'opacity-50' : ''}`;
                 
                 let suffix = isProOpt 
                     ? (isDisabled ? `<div class="ml-auto flex items-center gap-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-500 text-[10px] font-bold px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">${LOCK_ICON} PRO</div>` : `<div class="ml-auto bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold px-1.5 py-0.5 rounded border border-green-200 dark:border-green-800">FREE</div>`)
@@ -1069,7 +1125,11 @@
                 div.innerHTML = `<span class="font-medium">${label}</span>${suffix}`;
                 
                 div.onclick = (e) => {
-                    if(isDisabled) { openPaymentModal(); return; }
+                    if(isDisabled) { 
+                        if (isAnon) openAuthModal(false);
+                        else openPaymentModal(); 
+                        return; 
+                    }
                     select.value = val;
                     select.dispatchEvent(new Event('change')); // Trigger change for listeners
                     updateTrigger(trigger, label, null);
@@ -1078,6 +1138,9 @@
                 };
                 menu.appendChild(div);
             });
+
+            if (isAnon) renderSignInCTA(menu);
+
             const currentOpt = select.options[select.selectedIndex];
             const labelMap = {
                  'short': 'len_short', 'medium': 'len_medium', 'fixed-long': 'len_long', 'custom': 'len_custom'
