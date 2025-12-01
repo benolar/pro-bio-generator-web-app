@@ -435,7 +435,7 @@
         </div>
     </div>
     
-    <!-- DELETE MODAL (Rest same) -->
+    <!-- DELETE MODAL -->
     <div id="delete-confirmation-modal" class="fixed inset-0 bg-black/60 backdrop-blur-md z-[60] hidden flex items-center justify-center transition-opacity opacity-0" aria-modal="true" role="dialog">
         <div class="bg-white dark:bg-[#1e1f20] rounded-2xl shadow-2xl w-full max-w-xs mx-4 overflow-hidden transform transition-all scale-95" id="delete-modal-panel">
             <div class="p-6 text-center">
@@ -446,6 +446,48 @@
                 <div class="flex gap-3 mt-6">
                     <button id="cancel-delete-btn" class="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Cancel</button>
                     <button id="confirm-delete-btn" class="flex-1 bg-red-600 text-white font-semibold py-2 rounded-lg hover:bg-red-700 transition-colors shadow-lg shadow-red-200 dark:shadow-none">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT PROFILE MODAL -->
+    <div id="edit-profile-modal" class="fixed inset-0 bg-black/60 backdrop-blur-md z-[60] hidden flex items-center justify-center transition-opacity opacity-0" aria-modal="true" role="dialog">
+        <div class="bg-white dark:bg-[#1e1f20] rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden transform transition-all scale-95" id="edit-profile-panel">
+            <div class="p-6">
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Edit profile</h3>
+                
+                <!-- Avatar Section -->
+                <div class="flex justify-center mb-6">
+                    <div class="relative group cursor-pointer" id="edit-avatar-trigger">
+                        <div id="edit-avatar-preview" class="w-24 h-24 rounded-full bg-emerald-600 flex items-center justify-center text-3xl font-medium text-white border-4 border-white dark:border-[#2c2d2e] shadow-md overflow-hidden">
+                            <!-- Initials or Image injected here -->
+                            BA
+                        </div>
+                        <div class="absolute bottom-0 right-0 bg-white dark:bg-[#2c2d2e] rounded-full p-1.5 shadow-md border border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-gray-100 dark:group-hover:bg-[#373839] transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        </div>
+                        <input type="file" id="avatar-upload" class="hidden" accept="image/*">
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Display name</label>
+                        <input type="text" id="edit-display-name" class="w-full px-4 py-2.5 bg-white dark:bg-[#131314] text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder-gray-400">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Username</label>
+                        <input type="text" id="edit-username" class="w-full px-4 py-2.5 bg-white dark:bg-[#131314] text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder-gray-400">
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                        Your profile helps people recognize you. Your name and username are also used in the app.
+                    </p>
+                </div>
+
+                <div class="flex justify-end gap-3 mt-8">
+                    <button id="cancel-edit-profile" class="px-5 py-2.5 text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">Cancel</button>
+                    <button id="save-edit-profile" class="px-5 py-2.5 text-sm font-bold text-white bg-black dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 rounded-full transition-colors shadow-lg">Save</button>
                 </div>
             </div>
         </div>
@@ -694,12 +736,13 @@
         import { 
             getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserSessionPersistence,
             GoogleAuthProvider, signInWithPopup, linkWithPopup, signOut, EmailAuthProvider, linkWithCredential,
-            createUserWithEmailAndPassword, signInWithEmailAndPassword
+            createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, limit, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, limit, doc, deleteDoc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
         
         // GLOBAL STATE
-        let app, db, auth, userId = null;
+        let app, db, auth, storage, userId = null;
         let isAuthReady = false;
         let isPro = false;
         let isRegisterMode = false;
@@ -1363,6 +1406,7 @@
             app = initializeApp(firebaseConfig);
             db = getFirestore(app);
             auth = getAuth(app);
+            storage = getStorage(app);
 
             (async () => {
                 await setPersistence(auth, browserSessionPersistence);
@@ -1397,6 +1441,7 @@
             sidebarAuthContainer.innerHTML = '';
             
             if (user.isAnonymous) {
+                // ... (Anonymous user logic) ...
                 // Show Header Buttons
                 headerAuthButtons.classList.remove('hidden');
                 headerAuthButtons.classList.add('flex');
@@ -1412,19 +1457,23 @@
                         </div>
                     </button>
                 `;
-                // Guest button in sidebar now opens Sign In (false) instead of Sign Up (true)
                 document.getElementById('auth-btn-sidebar').onclick = () => openAuthModal(false);
+
             } else {
                 // Hide Header Buttons
                 headerAuthButtons.classList.add('hidden');
                 headerAuthButtons.classList.remove('flex');
 
                 const name = user.displayName || user.email.split('@')[0];
+                const avatar = user.photoURL 
+                    ? `<img src="${user.photoURL}" class="w-full h-full object-cover">` 
+                    : `${name.charAt(0).toUpperCase()}`;
+
                 sidebarAuthContainer.innerHTML = `
                     <div class="relative group">
                          <button id="user-profile-btn" class="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors text-left focus:outline-none focus:ring-2 focus:ring-indigo-500/50">
-                             <div class="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-200 font-bold text-sm flex-shrink-0">
-                                ${name.charAt(0).toUpperCase()}
+                             <div class="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-200 font-bold text-sm flex-shrink-0 overflow-hidden">
+                                ${avatar}
                             </div>
                             <div class="flex-1 min-w-0">
                                 <div class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">${name}</div>
@@ -1436,7 +1485,7 @@
                          <!-- Dropdown Menu -->
                          <div id="user-dropdown-menu" class="absolute bottom-full left-0 w-full mb-2 bg-white dark:bg-[#1e1f20] rounded-xl border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden hidden transform origin-bottom transition-all duration-200 z-50">
                             <div class="p-1.5 space-y-0.5">
-                                <button class="menu-item-placeholder w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2">
+                                <button id="menu-user-profile" class="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2">
                                     <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                                     User profile
                                 </button>
@@ -1484,7 +1533,13 @@
                     }
                 });
 
-                // Menu Items
+                // Attach Listener for Edit Profile
+                document.getElementById('menu-user-profile').onclick = () => {
+                    dropdownMenu.classList.add('hidden');
+                    chevron.classList.remove('rotate-180');
+                    openEditProfileModal();
+                };
+
                 document.querySelectorAll('.menu-item-placeholder').forEach(btn => {
                     btn.onclick = () => showMessage("Feature coming soon");
                 });
@@ -1497,6 +1552,141 @@
                 closeAuthModal();
             }
         }
+        
+        // --- EDIT PROFILE LOGIC ---
+        function updateAvatarPreview(url, name) {
+            const div = document.getElementById('edit-avatar-preview');
+            div.innerHTML = '';
+            if(url) {
+                div.innerHTML = `<img src="${url}" class="w-full h-full object-cover">`;
+            } else {
+                const initials = (name || 'U').substring(0, 2).toUpperCase();
+                div.textContent = initials;
+            }
+        }
+
+        async function openEditProfileModal() {
+            if (!auth.currentUser) return;
+            const user = auth.currentUser;
+            
+            // Fill Display Name
+            document.getElementById('edit-display-name').value = user.displayName || '';
+            
+            // Fill Username
+            let username = '';
+            try {
+                const docRef = doc(db, `artifacts/${appId}/users/${user.uid}/profile/data`);
+                const docSnap = await getDoc(docRef);
+                if(docSnap.exists()) {
+                    username = docSnap.data().username || '';
+                }
+            } catch(e) { console.log("Fetch username error:", e); }
+            
+            if(!username) username = (user.email || '').split('@')[0];
+            document.getElementById('edit-username').value = username;
+
+            // Avatar Preview
+            updateAvatarPreview(user.photoURL, user.displayName || user.email);
+            
+            // Show Modal
+            const modal = document.getElementById('edit-profile-modal');
+            const panel = document.getElementById('edit-profile-panel');
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                modal.classList.remove('opacity-0');
+                panel.classList.remove('scale-95');
+                panel.classList.add('scale-100');
+            });
+        }
+
+        function closeEditProfileModal() {
+            const modal = document.getElementById('edit-profile-modal');
+            const panel = document.getElementById('edit-profile-panel');
+            modal.classList.add('opacity-0');
+            panel.classList.remove('scale-100');
+            panel.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 200);
+            
+            // Reset input
+            document.getElementById('avatar-upload').value = ''; 
+        }
+
+        document.getElementById('cancel-edit-profile').onclick = closeEditProfileModal;
+        document.getElementById('edit-avatar-trigger').onclick = () => document.getElementById('avatar-upload').click();
+        
+        document.getElementById('avatar-upload').onchange = (e) => {
+            if(e.target.files.length > 0) {
+                const src = URL.createObjectURL(e.target.files[0]);
+                updateAvatarPreview(src, '');
+            }
+        };
+
+        document.getElementById('save-edit-profile').onclick = async () => {
+            const btn = document.getElementById('save-edit-profile');
+            const originalText = btn.textContent;
+            btn.textContent = 'Saving...';
+            btn.disabled = true;
+            
+            try {
+                const user = auth.currentUser;
+                const newName = document.getElementById('edit-display-name').value;
+                const newUsername = document.getElementById('edit-username').value;
+                
+                // Handle Image Upload if file selected
+                const fileInput = document.getElementById('avatar-upload');
+                let newPhotoURL = user.photoURL;
+                
+                if(fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    // Basic file size check (max 5MB)
+                    if (file.size > 5 * 1024 * 1024) {
+                        throw new Error("Image too large. Max 5MB.");
+                    }
+                    const storageRef = ref(storage, `users/${user.uid}/avatar_${Date.now()}`);
+                    await uploadBytes(storageRef, file);
+                    newPhotoURL = await getDownloadURL(storageRef);
+                }
+                
+                // Update Auth Profile
+                if (newName !== user.displayName || newPhotoURL !== user.photoURL) {
+                    await updateProfile(user, {
+                        displayName: newName,
+                        photoURL: newPhotoURL
+                    });
+                }
+                
+                // Save Username to Firestore
+                await setDoc(doc(db, `artifacts/${appId}/users/${user.uid}/profile/data`), {
+                    username: newUsername,
+                    updatedAt: serverTimestamp()
+                }, { merge: true });
+                
+                // Update UI sidebar immediately
+                updateAuthUI(auth.currentUser);
+                
+                closeEditProfileModal();
+                showMessage("Profile updated successfully!");
+                
+            } catch(e) {
+                console.error(e);
+                showMessage(e.message || "Failed to update profile", true);
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        };
+
+                // Menu Items
+                document.querySelectorAll('.menu-item-placeholder').forEach(btn => {
+                    btn.onclick = () => showMessage("Feature coming soon");
+                });
+                document.querySelector('.menu-item-upgrade').onclick = () => {
+                     dropdownMenu.classList.add('hidden');
+                     openPaymentModal();
+                };
+                document.getElementById('menu-sign-out').onclick = () => signOut(auth).then(()=>window.location.reload());
+                
+                closeAuthModal();
 
         // --- AUTH ACTIONS ---
         const googleProvider = new GoogleAuthProvider();
