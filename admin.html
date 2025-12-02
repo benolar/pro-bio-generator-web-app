@@ -37,6 +37,9 @@
         /* Simple Bar Chart CSS */
         .chart-bar { transition: height 0.5s ease-out; }
         .chart-bar:hover { opacity: 0.8; }
+        
+        /* Sidebar Overlay for Mobile */
+        #sidebar-overlay { transition: opacity 0.3s; }
     </style>
 </head>
 <body class="bg-[#f3f4f6] dark:bg-[#0b0c0d] text-gray-800 dark:text-gray-200 h-[100dvh] overflow-hidden flex transition-colors duration-300">
@@ -58,11 +61,19 @@
         </div>
     </div>
 
+    <!-- MOBILE SIDEBAR OVERLAY -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-20 hidden md:hidden glass-panel backdrop-blur-sm"></div>
+
     <!-- SIDEBAR -->
-    <aside class="w-72 bg-white dark:bg-[#151616] border-r border-gray-200 dark:border-gray-800 flex-col hidden md:flex z-10 shadow-xl">
-        <div class="p-6 flex items-center gap-3">
-            <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg">B</div>
-            <span class="font-bold text-gray-900 dark:text-white text-lg tracking-tight">BioGen Admin</span>
+    <aside id="sidebar" class="fixed inset-y-0 left-0 w-72 bg-white dark:bg-[#151616] border-r border-gray-200 dark:border-gray-800 flex flex-col transform -translate-x-full md:translate-x-0 md:static md:flex transition-transform duration-300 z-30 shadow-2xl md:shadow-xl">
+        <div class="p-6 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg">B</div>
+                <span class="font-bold text-gray-900 dark:text-white text-lg tracking-tight">BioGen Admin</span>
+            </div>
+            <button id="close-sidebar-btn" class="md:hidden text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white p-1">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
         </div>
         
         <nav class="flex-1 px-4 space-y-2 mt-4">
@@ -93,16 +104,26 @@
                     <div class="text-[10px] text-gray-500 truncate" id="admin-email">...</div>
                 </div>
             </div>
-            <button id="logout-btn" class="w-full text-xs font-bold text-red-600 hover:text-white bg-white hover:bg-red-500 border border-gray-200 hover:border-red-500 dark:bg-transparent dark:border-gray-700 dark:text-red-400 dark:hover:bg-red-900/50 py-2.5 rounded-lg transition-all shadow-sm">Sign Out</button>
+            <button id="logout-btn" class="w-full text-xs font-bold text-red-600 hover:text-white bg-white hover:bg-red-500 border border-gray-200 hover:border-red-500 dark:bg-transparent dark:border-gray-700 dark:text-red-400 dark:hover:bg-red-900/50 py-2.5 rounded-lg transition-all shadow-sm flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                Sign Out
+            </button>
         </div>
     </aside>
 
     <!-- MAIN CONTENT -->
     <main class="flex-1 flex flex-col min-w-0 bg-[#f3f4f6] dark:bg-[#0b0c0d] relative overflow-hidden transition-colors">
         <!-- Mobile Header -->
-        <header class="md:hidden bg-white dark:bg-[#1e1f20] p-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center z-20">
-            <span class="font-bold text-gray-900 dark:text-white">Admin Dashboard</span>
-            <button id="mobile-menu-btn" class="text-gray-500"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+        <header class="md:hidden bg-white dark:bg-[#1e1f20] p-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center z-20 sticky top-0">
+            <div class="flex items-center gap-3">
+                <button id="mobile-menu-btn" class="text-gray-500 hover:text-gray-900 dark:hover:text-white p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+                <span class="font-bold text-gray-900 dark:text-white">Admin Dashboard</span>
+            </div>
+            <button id="mobile-logout-btn" class="text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="Sign Out">
+                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+            </button>
         </header>
 
         <div class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 space-y-8" id="content-area">
@@ -335,10 +356,17 @@
         const loginBtn = document.getElementById('admin-login-btn');
         const loginError = document.getElementById('login-error');
         const logoutBtn = document.getElementById('logout-btn');
+        const mobileLogoutBtn = document.getElementById('mobile-logout-btn');
         const adminName = document.getElementById('admin-name');
         const adminEmail = document.getElementById('admin-email');
         const adminAvatar = document.getElementById('admin-avatar');
         
+        // Mobile Sidebar Refs
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const closeSidebarBtn = document.getElementById('close-sidebar-btn');
+
         const navBtns = document.querySelectorAll('.nav-btn');
         const views = {
             dashboard: document.getElementById('view-dashboard'),
@@ -387,10 +415,37 @@
         });
 
         loginBtn.onclick = () => signInWithPopup(auth, new GoogleAuthProvider());
-        logoutBtn.onclick = () => signOut(auth);
+        
+        // Robust Logout Function
+        const performLogout = () => {
+            signOut(auth).then(() => {
+                // Optional: Reload to clear sensitive states if needed, though onAuthStateChanged handles UI
+                window.location.reload(); 
+            });
+        };
+
+        logoutBtn.onclick = performLogout;
+        if(mobileLogoutBtn) mobileLogoutBtn.onclick = performLogout;
+
+        // Mobile Sidebar Logic
+        function toggleSidebar() {
+            const isClosed = sidebar.classList.contains('-translate-x-full');
+            if (isClosed) {
+                sidebar.classList.remove('-translate-x-full');
+                sidebarOverlay.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                sidebarOverlay.classList.add('hidden');
+            }
+        }
+        
+        mobileMenuBtn.onclick = toggleSidebar;
+        closeSidebarBtn.onclick = toggleSidebar;
+        sidebarOverlay.onclick = toggleSidebar;
 
         navBtns.forEach(btn => {
             btn.onclick = () => {
+                // Update active state
                 navBtns.forEach(b => {
                      b.className = "nav-btn group w-full text-left px-4 py-3.5 rounded-xl text-sm font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1f2022] hover:text-gray-900 dark:hover:text-white transition-all flex items-center gap-3";
                 });
@@ -399,6 +454,12 @@
                 const tab = btn.dataset.tab;
                 Object.values(views).forEach(v => v.classList.add('hidden'));
                 views[tab].classList.remove('hidden');
+                
+                // Close sidebar on mobile when navigating
+                if(window.innerWidth < 768) {
+                    sidebar.classList.add('-translate-x-full');
+                    sidebarOverlay.classList.add('hidden');
+                }
                 
                 if(tab === 'users') loadUsers();
                 if(tab === 'bios') loadBios();
