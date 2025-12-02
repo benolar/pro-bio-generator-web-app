@@ -41,7 +41,7 @@ export default async function handler(req, res) {
         return res.status(403).json({ error: e.message });
     }
 
-    const { action, uid } = req.body; // uid destructuring for getUserDetails
+    const { action, uid, bioId, userId } = req.body; 
     const appId = process.env.SECURE_APP_ID || 'default-app-id';
 
     try {
@@ -50,9 +50,6 @@ export default async function handler(req, res) {
         }
 
         if (action === 'getStats') {
-            // NOTE: Accurate counts in Firestore are expensive ($). 
-            // We will use a lightweight estimation or just list recent activity for this demo.
-            
             // 1. Get recent failure logs
             const alertsSnap = await db.collection(`artifacts/${appId}/alerts/webhookFailures`)
                 .orderBy('createdAt', 'desc')
@@ -68,28 +65,47 @@ export default async function handler(req, res) {
                 };
             });
 
-            // 2. Count approximate users (List 1000 max from Auth)
+            // 2. Count approximate users & Aggregate Growth Data (Last 7 Days)
             let listUsersResult = await admin.auth().listUsers(1000);
             const userCount = listUsersResult.users.length; 
+            
+            // Calculate growth chart data
+            const last7Days = {};
+            const today = new Date();
+            for(let i=6; i>=0; i--) {
+                const d = new Date(today);
+                d.setDate(d.getDate() - i);
+                last7Days[d.toLocaleDateString()] = 0;
+            }
+
+            listUsersResult.users.forEach(u => {
+                const date = new Date(u.metadata.creationTime).toLocaleDateString();
+                if (last7Days[date] !== undefined) last7Days[date]++;
+            });
+
+            const chartData = Object.keys(last7Days).map(date => ({
+                date: date.split('/')[0] + '/' + date.split('/')[1], // Simple MM/DD
+                count: last7Days[date]
+            }));
 
             // 3. Count Pro (Requires Firestore query)
             const proSnap = await db.collectionGroup('status').where('isPro', '==', true).limit(100).get();
             const proCount = proSnap.size + (proSnap.size === 100 ? '+' : '');
 
             // 4. Bio count (Estimation)
-            // Just returning a placeholder string for now to avoid massive reads on bio collection group
             const bioCount = "Active"; 
             
             return res.status(200).json({
                 userCount: userCount + (listUsersResult.pageToken ? '+' : ''),
                 proCount: proCount,
                 bioCount: bioCount,
-                logs
+                logs,
+                chartData
             });
         }
 
         if (action === 'getUsers') {
-            const listUsersResult = await admin.auth().listUsers(100); // Increased limit slightly
+            const listUsersResult = await admin.auth().listUsers(100); 
             const users = [];
             
             for (const u of listUsersResult.users) {
@@ -106,6 +122,7 @@ export default async function handler(req, res) {
                     photoURL: u.photoURL,
                     lastLogin: u.metadata.lastSignInTime,
                     createdAt: u.metadata.creationTime,
+                    disabled: u.disabled,
                     isPro
                 });
             }
@@ -117,15 +134,12 @@ export default async function handler(req, res) {
 
             const userRecord = await admin.auth().getUser(uid);
             
-            // Status Data
             const statusDoc = await db.doc(`artifacts/${appId}/users/${uid}/profile/status`).get();
             const statusData = statusDoc.exists ? statusDoc.data() : null;
 
-            // Profile Data (Username etc)
             const profileDoc = await db.doc(`artifacts/${appId}/users/${uid}/profile/data`).get();
             const profileData = profileDoc.exists ? profileDoc.data() : null;
 
-            // Bio Count (Using Aggregation)
             const biosRef = db.collection(`artifacts/${appId}/users/${uid}/bios`);
             const countSnap = await biosRef.count().get();
             const bioCount = countSnap.data().count;
@@ -137,6 +151,7 @@ export default async function handler(req, res) {
                     displayName: userRecord.displayName,
                     photoURL: userRecord.photoURL,
                     metadata: userRecord.metadata,
+                    disabled: userRecord.disabled,
                     providerData: userRecord.providerData
                 },
                 status: statusData,
@@ -146,7 +161,6 @@ export default async function handler(req, res) {
         }
 
         if (action === 'getRecentBios') {
-            // Collection Group Query: fetch bios from all users
             const snap = await db.collectionGroup('bios')
                 .orderBy('timestamp', 'desc')
                 .limit(50)
@@ -154,11 +168,11 @@ export default async function handler(req, res) {
             
             const bios = snap.docs.map(d => {
                 const pathSegments = d.ref.path.split('/');
-                const userId = pathSegments[3]; // rough extraction
+                const uId = pathSegments[3]; 
                 const data = d.data();
                 return {
                     id: d.id,
-                    userId,
+                    userId: uId,
                     bio: data.bio,
                     platform: data.platform,
                     niche: data.niche,
@@ -168,6 +182,35 @@ export default async function handler(req, res) {
             });
             
             return res.status(200).json({ bios });
+        }
+
+        // --- NEW MANAGEMENT ACTIONS ---
+
+        if (action === 'togglePro') {
+            if(!uid) return res.status(400).json({error: "UID required"});
+            const statusRef = db.doc(`artifacts/${appId}/users/${uid}/profile/status`);
+            const doc = await statusRef.get();
+            const currentPro = doc.exists ? doc.data().isPro : false;
+            
+            await statusRef.set({ 
+                isPro: !currentPro,
+                adminModifiedAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            return res.status(200).json({ success: true, newStatus: !currentPro });
+        }
+
+        if (action === 'toggleDisableUser') {
+            if(!uid) return res.status(400).json({error: "UID required"});
+            const user = await admin.auth().getUser(uid);
+            await admin.auth().updateUser(uid, { disabled: !user.disabled });
+            return res.status(200).json({ success: true, newStatus: !user.disabled });
+        }
+
+        if (action === 'deleteBio') {
+            if(!bioId || !userId) return res.status(400).json({error: "BioID and UserID required"});
+            await db.doc(`artifacts/${appId}/users/${userId}/bios/${bioId}`).delete();
+            return res.status(200).json({ success: true });
         }
 
         return res.status(400).json({ error: 'Unknown Action' });

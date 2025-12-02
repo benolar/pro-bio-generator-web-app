@@ -33,6 +33,10 @@
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+
+        /* Simple Bar Chart CSS */
+        .chart-bar { transition: height 0.5s ease-out; }
+        .chart-bar:hover { opacity: 0.8; }
     </style>
 </head>
 <body class="bg-[#f3f4f6] dark:bg-[#0b0c0d] text-gray-800 dark:text-gray-200 h-[100dvh] overflow-hidden flex transition-colors duration-300">
@@ -130,13 +134,6 @@
                                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                              </div>
                         </div>
-                        <div class="mt-4 flex items-center gap-2 text-xs">
-                             <span class="text-emerald-500 font-bold bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded flex items-center">
-                                <svg class="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
-                                +12%
-                             </span>
-                             <span class="text-gray-400">vs last week</span>
-                        </div>
                     </div>
 
                     <!-- Pro Card -->
@@ -150,13 +147,6 @@
                              <div class="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-xl text-amber-600 dark:text-amber-400">
                                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                              </div>
-                        </div>
-                         <div class="mt-4 flex items-center gap-2 text-xs">
-                             <span class="text-emerald-500 font-bold bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded flex items-center">
-                                <svg class="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
-                                +5%
-                             </span>
-                             <span class="text-gray-400">vs last week</span>
                         </div>
                     </div>
 
@@ -172,12 +162,15 @@
                                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
                              </div>
                         </div>
-                        <div class="mt-4 flex items-center gap-2 text-xs">
-                             <span class="text-gray-400">System Status:</span>
-                             <span class="text-emerald-500 font-bold flex items-center gap-1">
-                                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Operational
-                             </span>
-                        </div>
+                    </div>
+                </div>
+
+                <!-- Growth Chart Section -->
+                <div class="bg-white dark:bg-[#1e1f20] rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden p-6">
+                    <h3 class="font-bold text-gray-900 dark:text-white mb-4">User Growth (Last 7 Days)</h3>
+                    <div id="growth-chart" class="h-40 flex items-end gap-2">
+                        <!-- Bars injected via JS -->
+                        <div class="flex-1 flex items-center justify-center text-gray-400 text-xs">Loading chart...</div>
                     </div>
                 </div>
 
@@ -189,11 +182,8 @@
                             System Logs
                         </h3>
                     </div>
-                    <div id="logs-list" class="divide-y divide-gray-100 dark:divide-gray-800 max-h-80 overflow-y-auto">
-                        <div class="p-8 text-center text-sm text-gray-500">
-                             <svg class="w-10 h-10 mx-auto text-gray-300 mb-2 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                             Fetching system logs...
-                        </div>
+                    <div id="logs-list" class="divide-y divide-gray-100 dark:divide-gray-800 max-h-60 overflow-y-auto">
+                        <!-- Logs -->
                     </div>
                 </div>
             </div>
@@ -281,6 +271,9 @@
                     <div id="detail-pro-badge" class="hidden bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full border border-amber-200 shadow-sm mb-2">
                         👑 PRO USER
                     </div>
+                    <div id="detail-disabled-badge" class="hidden bg-red-100 text-red-800 text-xs font-bold px-3 py-1 rounded-full border border-red-200 shadow-sm mb-2 ml-2">
+                        🚫 DISABLED
+                    </div>
                 </div>
                 
                 <h3 id="detail-name" class="text-2xl font-bold text-gray-900 dark:text-white">User Name</h3>
@@ -294,6 +287,19 @@
                      <div class="bg-gray-50 dark:bg-[#252627] p-4 rounded-xl border border-gray-100 dark:border-gray-800">
                         <div class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">Joined</div>
                         <div class="text-sm font-semibold text-gray-700 dark:text-gray-300 mt-1" id="detail-joined">-</div>
+                    </div>
+                </div>
+
+                <!-- Admin Actions -->
+                <div class="bg-gray-50 dark:bg-[#252627] p-4 rounded-xl border border-gray-100 dark:border-gray-800 mb-6">
+                    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Admin Actions</div>
+                    <div class="flex gap-3">
+                         <button id="btn-toggle-pro" class="flex-1 py-2 rounded-lg text-xs font-bold border transition-colors bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-gray-700 dark:text-gray-300">
+                            Toggle Pro
+                         </button>
+                         <button id="btn-toggle-disable" class="flex-1 py-2 rounded-lg text-xs font-bold border transition-colors bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400">
+                            Disable User
+                         </button>
                     </div>
                 </div>
                 
@@ -345,11 +351,11 @@
         const closeModalBtn = document.getElementById('close-detail-modal');
         let allUsersCache = [];
         let allBiosCache = [];
+        let currentInspectUid = null;
 
         // Auth Logic
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                // Verify Admin via Backend API
                 try {
                     const token = await user.getIdToken();
                     const res = await fetch('/api/admin', {
@@ -383,28 +389,23 @@
         loginBtn.onclick = () => signInWithPopup(auth, new GoogleAuthProvider());
         logoutBtn.onclick = () => signOut(auth);
 
-        // Navigation Logic
         navBtns.forEach(btn => {
             btn.onclick = () => {
-                // Update Active State
                 navBtns.forEach(b => {
                      b.className = "nav-btn group w-full text-left px-4 py-3.5 rounded-xl text-sm font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1f2022] hover:text-gray-900 dark:hover:text-white transition-all flex items-center gap-3";
                 });
                 btn.className = "nav-btn group w-full text-left px-4 py-3.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300";
                 
-                // Show View
                 const tab = btn.dataset.tab;
                 Object.values(views).forEach(v => v.classList.add('hidden'));
                 views[tab].classList.remove('hidden');
                 
-                // Load Data
                 if(tab === 'users') loadUsers();
                 if(tab === 'bios') loadBios();
                 if(tab === 'dashboard') loadDashboard();
             };
         });
 
-        // Data Fetching Wrapper
         async function apiCall(action, payload = {}) {
             const token = await auth.currentUser.getIdToken();
             const res = await fetch('/api/admin', {
@@ -422,6 +423,9 @@
                 document.getElementById('stat-users').textContent = data.userCount || '-';
                 document.getElementById('stat-pro').textContent = data.proCount || '-';
                 document.getElementById('stat-bios').textContent = data.bioCount || '-';
+
+                // Render Chart
+                if(data.chartData) renderChart(data.chartData);
 
                 // Logs
                 const logsList = document.getElementById('logs-list');
@@ -448,9 +452,35 @@
             } catch(e) { console.error(e); }
         }
 
+        function renderChart(data) {
+            const chartContainer = document.getElementById('growth-chart');
+            if(!data || !data.length) {
+                chartContainer.innerHTML = '<div class="flex-1 flex items-center justify-center text-gray-400 text-xs">No chart data</div>';
+                return;
+            }
+            
+            const maxVal = Math.max(...data.map(d => d.count)) || 1;
+            chartContainer.innerHTML = '';
+            
+            data.forEach(item => {
+                const heightPct = (item.count / maxVal) * 100;
+                const bar = document.createElement('div');
+                bar.className = 'flex-1 flex flex-col justify-end group relative';
+                bar.innerHTML = `
+                    <div class="w-full bg-indigo-500 dark:bg-indigo-600 rounded-t-sm chart-bar relative" style="height: ${heightPct < 10 ? 10 : heightPct}%">
+                         <div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-[10px] py-1 px-2 rounded pointer-events-none transition-opacity">
+                            ${item.count} users
+                        </div>
+                    </div>
+                    <div class="text-[10px] text-center text-gray-400 mt-2 truncate">${item.date}</div>
+                `;
+                chartContainer.appendChild(bar);
+            });
+        }
+
         async function loadUsers() {
             const tbody = document.getElementById('users-table-body');
-            tbody.innerHTML = '<tr><td colspan="4" class="p-12 text-center text-gray-500"><svg class="w-8 h-8 mx-auto mb-2 animate-spin text-indigo-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Loading Users...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="p-12 text-center text-gray-500">Loading Users...</td></tr>';
             try {
                 const data = await apiCall('getUsers');
                 allUsersCache = data.users || [];
@@ -465,7 +495,7 @@
             const tbody = document.getElementById('users-table-body');
             tbody.innerHTML = '';
             if(!users.length) {
-                 tbody.innerHTML = '<tr><td colspan="4" class="p-12 text-center text-gray-500">No users found matching criteria.</td></tr>';
+                 tbody.innerHTML = '<tr><td colspan="4" class="p-12 text-center text-gray-500">No users found.</td></tr>';
                  return;
             }
             
@@ -487,9 +517,12 @@
                         </div>
                     </td>
                     <td class="px-6 py-4">
+                        <div class="flex gap-1">
                         ${u.isPro 
                             ? '<span class="px-2.5 py-1 text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-full border border-amber-200 dark:border-amber-800">PRO</span>' 
                             : '<span class="px-2.5 py-1 text-[10px] font-bold bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 rounded-full border border-gray-200 dark:border-gray-700">FREE</span>'}
+                        ${u.disabled ? '<span class="px-2.5 py-1 text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded-full">DISABLED</span>' : ''}
+                        </div>
                     </td>
                     <td class="px-6 py-4">
                          <div class="text-xs text-gray-500 font-mono">${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '-'}</div>
@@ -501,19 +534,11 @@
                         </button>
                     </td>
                 `;
-                tr.onclick = (e) => {
-                    // Prevent double firing if button clicked
-                    if(!e.target.classList.contains('view-user-btn')) openUserModal(u.uid);
-                };
-                tr.querySelector('.view-user-btn').onclick = (e) => {
-                    e.stopPropagation();
-                    openUserModal(u.uid);
-                };
+                tr.onclick = () => openUserModal(u.uid);
                 tbody.appendChild(tr);
             });
         }
 
-        // Search Logic
         document.getElementById('user-search').addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
             const filtered = allUsersCache.filter(u => 
@@ -524,8 +549,9 @@
             renderUsersTable(filtered);
         });
 
-        // User Details Modal
+        // User Details Modal Actions
         async function openUserModal(uid) {
+            currentInspectUid = uid;
             modal.classList.remove('hidden');
             requestAnimationFrame(() => {
                 modal.classList.remove('opacity-0');
@@ -533,10 +559,10 @@
                 modalPanel.classList.add('scale-100');
             });
             
-            // Reset UI
             document.getElementById('detail-name').textContent = 'Loading...';
             document.getElementById('detail-json').textContent = 'Fetching data...';
             document.getElementById('detail-pro-badge').classList.add('hidden');
+            document.getElementById('detail-disabled-badge').classList.add('hidden');
             
             try {
                 const data = await apiCall('getUserDetails', { uid });
@@ -556,10 +582,32 @@
                 if (status.isPro) document.getElementById('detail-pro-badge').classList.remove('hidden');
                 else document.getElementById('detail-pro-badge').classList.add('hidden');
 
+                if (u.disabled) document.getElementById('detail-disabled-badge').classList.remove('hidden');
+                else document.getElementById('detail-disabled-badge').classList.add('hidden');
+
                 document.getElementById('detail-json').textContent = JSON.stringify(status, null, 2);
 
+                // Setup Buttons based on state
+                const proBtn = document.getElementById('btn-toggle-pro');
+                proBtn.textContent = status.isPro ? "Revoke Pro Status" : "Grant Pro Status";
+                proBtn.onclick = async () => {
+                    if(!confirm("Change user subscription status?")) return;
+                    await apiCall('togglePro', { uid });
+                    openUserModal(uid); // refresh
+                };
+
+                const disableBtn = document.getElementById('btn-toggle-disable');
+                disableBtn.textContent = u.disabled ? "Enable User" : "Disable User";
+                disableBtn.className = u.disabled ? "flex-1 py-2 rounded-lg text-xs font-bold border transition-colors bg-green-50 text-green-700 hover:bg-green-100 border-green-200" : "flex-1 py-2 rounded-lg text-xs font-bold border transition-colors bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400";
+                disableBtn.onclick = async () => {
+                     if(!confirm("Change user access status?")) return;
+                     await apiCall('toggleDisableUser', { uid });
+                     openUserModal(uid); // refresh
+                };
+
             } catch(e) {
-                document.getElementById('detail-name').textContent = 'Error fetching details';
+                console.error(e);
+                document.getElementById('detail-name').textContent = 'Error';
             }
         }
         
@@ -568,6 +616,7 @@
             modalPanel.classList.remove('scale-100');
             modalPanel.classList.add('scale-95');
             setTimeout(() => modal.classList.add('hidden'), 300);
+            currentInspectUid = null;
         }
         closeModalBtn.onclick = closeUserModal;
         modal.onclick = (e) => { if(e.target === modal) closeUserModal(); };
@@ -575,7 +624,7 @@
 
         async function loadBios() {
             const container = document.getElementById('bios-feed');
-            container.innerHTML = '<div class="col-span-full text-center p-12 text-gray-500"><svg class="w-8 h-8 mx-auto mb-2 animate-spin text-indigo-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Loading stream...</div>';
+            container.innerHTML = '<div class="col-span-full text-center p-12 text-gray-500">Loading stream...</div>';
             try {
                 const data = await apiCall('getRecentBios');
                 allBiosCache = data.bios || [];
@@ -596,7 +645,7 @@
 
              bios.forEach(bio => {
                 const div = document.createElement('div');
-                div.className = 'glass-panel p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow flex flex-col h-full bg-white dark:bg-[#1e1f20] border-gray-100 dark:border-gray-800';
+                div.className = 'glass-panel p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow flex flex-col h-full bg-white dark:bg-[#1e1f20] border-gray-100 dark:border-gray-800 relative group';
                 
                 let platformColor = 'bg-gray-100 text-gray-600';
                 if(bio.platform === 'LinkedIn') platformColor = 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400';
@@ -606,11 +655,16 @@
                 div.innerHTML = `
                     <div class="mb-3 flex items-center justify-between">
                         <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded ${platformColor}">${bio.platform || 'General'}</span>
-                        <span class="text-[10px] text-gray-400">${new Date(bio.timestamp).toLocaleString()}</span>
+                        <div class="flex items-center gap-2">
+                             <span class="text-[10px] text-gray-400">${new Date(bio.timestamp).toLocaleString()}</span>
+                             <button class="text-gray-300 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity" onclick="deleteBio('${bio.id}', '${bio.userId}')">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                             </button>
+                        </div>
                     </div>
                     <div class="text-sm text-gray-800 dark:text-gray-200 mb-4 flex-grow italic">"${bio.bio}"</div>
                     <div class="mt-auto pt-3 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center text-xs">
-                        <span class="text-gray-400 font-mono">${(bio.userId || '').substring(0,8)}...</span>
+                        <span class="text-gray-400 font-mono cursor-pointer hover:text-indigo-500" onclick="filterByUser('${bio.userId}')">${(bio.userId || '').substring(0,8)}...</span>
                         <span class="text-gray-500 font-medium">${bio.niche ? bio.niche.substring(0,15) : 'N/A'}</span>
                     </div>
                 `;
@@ -618,7 +672,23 @@
              });
         }
         
-        // Bio Filter
+        // Expose global function for inline onclicks
+        window.deleteBio = async (bioId, userId) => {
+            if(!confirm("Permanently delete this bio?")) return;
+            try {
+                await apiCall('deleteBio', { bioId, userId });
+                loadBios(); // refresh feed
+            } catch(e) { alert("Failed to delete"); }
+        };
+
+        window.filterByUser = (uid) => {
+            // Switch to users tab and search
+            document.querySelector('[data-tab="users"]').click();
+            const input = document.getElementById('user-search');
+            input.value = uid;
+            input.dispatchEvent(new Event('input'));
+        };
+        
         document.getElementById('bio-platform-filter').addEventListener('change', (e) => {
             const val = e.target.value;
             if(val === 'All') renderBios(allBiosCache);
