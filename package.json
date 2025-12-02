@@ -1,15 +1,19 @@
 {
   "name": "bio-generator-api",
   "version": "1.0.0",
-  "description": "Serverless function for bio generation using the Gemini API.",
-  "main": "api/generate-bio.js",
+  "description": "Bio Generator Web App with Node.js Backend",
+  "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node api/generate-bio.js",
-    "build": "mkdir -p public && cp ./index.html ./public/ && tailwindcss -i ./input.css -o ./public/output.css"
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "build": "mkdir -p public && cp ./*.html ./public/ && tailwindcss -i ./input.css -o ./public/output.css"
   },
   "dependencies": {
     "@google/genai": "^1.27.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
     "firebase-admin": "^12.0.0",
     "@vercel/kv": "^3.0.0"
   },
