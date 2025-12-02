@@ -41,7 +41,7 @@ export default async function handler(req, res) {
         return res.status(403).json({ error: e.message });
     }
 
-    const { action } = req.body;
+    const { action, uid } = req.body; // uid destructuring for getUserDetails
     const appId = process.env.SECURE_APP_ID || 'default-app-id';
 
     try {
@@ -52,7 +52,6 @@ export default async function handler(req, res) {
         if (action === 'getStats') {
             // NOTE: Accurate counts in Firestore are expensive ($). 
             // We will use a lightweight estimation or just list recent activity for this demo.
-            // For production, use Distributed Counters or aggregation queries if budget allows.
             
             // 1. Get recent failure logs
             const alertsSnap = await db.collection(`artifacts/${appId}/alerts/webhookFailures`)
@@ -60,38 +59,39 @@ export default async function handler(req, res) {
                 .limit(10)
                 .get();
             
-            const logs = alertsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            const logs = alertsSnap.docs.map(d => {
+                const data = d.data();
+                return { 
+                    id: d.id, 
+                    reason: data.reason, 
+                    time: data.createdAt ? data.createdAt.toDate() : new Date() 
+                };
+            });
 
             // 2. Count approximate users (List 1000 max from Auth)
-            // This is "free" compared to Firestore reads for small apps
             let listUsersResult = await admin.auth().listUsers(1000);
-            const userCount = listUsersResult.users.length; // Approximate for display
+            const userCount = listUsersResult.users.length; 
 
-            // 3. Count Pro (Requires Firestore query, cost = 1 read per doc found)
-            // We limit this to just checking recent activity or rely on a stored counter if implemented.
-            // For now, we return placeholder or do a small query.
+            // 3. Count Pro (Requires Firestore query)
             const proSnap = await db.collectionGroup('status').where('isPro', '==', true).limit(100).get();
             const proCount = proSnap.size + (proSnap.size === 100 ? '+' : '');
 
-            // 4. Bio count (Estimation from Collection Group)
-            // We won't count all, just say N/A or implement a counter later.
-            // Just return "Many" for now to save costs/latency.
+            // 4. Bio count (Estimation)
+            // Just returning a placeholder string for now to avoid massive reads on bio collection group
+            const bioCount = "Active"; 
             
             return res.status(200).json({
                 userCount: userCount + (listUsersResult.pageToken ? '+' : ''),
                 proCount: proCount,
-                bioCount: "Active",
+                bioCount: bioCount,
                 logs
             });
         }
 
         if (action === 'getUsers') {
-            const listUsersResult = await admin.auth().listUsers(50);
+            const listUsersResult = await admin.auth().listUsers(100); // Increased limit slightly
             const users = [];
             
-            // Enrich with Pro status? (N+1 problem, but manageable for 50 users)
-            // Better: Get status docs where ID in list.
-            // For simplicity in this demo:
             for (const u of listUsersResult.users) {
                 let isPro = false;
                 try {
@@ -102,30 +102,68 @@ export default async function handler(req, res) {
                 users.push({
                     uid: u.uid,
                     email: u.email,
+                    displayName: u.displayName,
+                    photoURL: u.photoURL,
                     lastLogin: u.metadata.lastSignInTime,
+                    createdAt: u.metadata.creationTime,
                     isPro
                 });
             }
             return res.status(200).json({ users });
         }
 
+        if (action === 'getUserDetails') {
+            if(!uid) return res.status(400).json({error: "User ID required"});
+
+            const userRecord = await admin.auth().getUser(uid);
+            
+            // Status Data
+            const statusDoc = await db.doc(`artifacts/${appId}/users/${uid}/profile/status`).get();
+            const statusData = statusDoc.exists ? statusDoc.data() : null;
+
+            // Profile Data (Username etc)
+            const profileDoc = await db.doc(`artifacts/${appId}/users/${uid}/profile/data`).get();
+            const profileData = profileDoc.exists ? profileDoc.data() : null;
+
+            // Bio Count (Using Aggregation)
+            const biosRef = db.collection(`artifacts/${appId}/users/${uid}/bios`);
+            const countSnap = await biosRef.count().get();
+            const bioCount = countSnap.data().count;
+
+            return res.status(200).json({
+                user: {
+                    uid: userRecord.uid,
+                    email: userRecord.email,
+                    displayName: userRecord.displayName,
+                    photoURL: userRecord.photoURL,
+                    metadata: userRecord.metadata,
+                    providerData: userRecord.providerData
+                },
+                status: statusData,
+                profile: profileData,
+                bioCount
+            });
+        }
+
         if (action === 'getRecentBios') {
             // Collection Group Query: fetch bios from all users
             const snap = await db.collectionGroup('bios')
                 .orderBy('timestamp', 'desc')
-                .limit(20)
+                .limit(50)
                 .get();
             
             const bios = snap.docs.map(d => {
-                // Parent of bio is 'bios' collection, parent of that is 'user' doc
-                // Path: artifacts/{appId}/users/{userId}/bios/{bioId}
                 const pathSegments = d.ref.path.split('/');
                 const userId = pathSegments[3]; // rough extraction
+                const data = d.data();
                 return {
                     id: d.id,
                     userId,
-                    ...d.data(),
-                    timestamp: d.data().timestamp?.toDate ? d.data().timestamp.toDate() : new Date()
+                    bio: data.bio,
+                    platform: data.platform,
+                    niche: data.niche,
+                    tone: data.tone,
+                    timestamp: data.timestamp?.toDate ? data.timestamp.toDate() : new Date()
                 };
             });
             
