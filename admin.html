@@ -47,6 +47,11 @@
         .animate-fade-in-down { animation: fadeInDown 0.3s ease-out; }
         .animation-delay-2000 { animation-delay: 2s; }
         .animation-delay-4000 { animation-delay: 4s; }
+
+        /* Collapsible Sidebar Logic */
+        #sidebar.sidebar-collapsed .nav-btn:hover .sidebar-tooltip {
+            display: block;
+        }
     </style>
 </head>
 <body class="bg-[#f8fafc] dark:bg-[#0f1011] text-gray-800 dark:text-gray-200 h-[100dvh] overflow-hidden flex flex-col transition-colors duration-300">
@@ -145,7 +150,7 @@
                     </div>
                     <span class="sidebar-text opacity-100 whitespace-nowrap transition-opacity duration-300">Dashboard</span>
                     <!-- Tooltip for collapsed state -->
-                    <div class="absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-900 text-white text-xs px-2 py-1 rounded hidden group-hover/sidebar:hidden group-hover:block z-50 whitespace-nowrap shadow-lg">Dashboard</div>
+                    <div class="sidebar-tooltip absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-900 text-white text-xs px-2 py-1 rounded hidden z-50 whitespace-nowrap shadow-lg">Dashboard</div>
                 </button>
 
                 <button data-tab="users" class="nav-btn w-full text-left px-3 py-3 rounded-xl text-sm font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1f2022] hover:text-gray-900 dark:hover:text-white transition-all flex items-center gap-3 group relative">
@@ -153,7 +158,7 @@
                         <svg class="w-5 h-5 opacity-75 group-hover:opacity-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                     </div>
                     <span class="sidebar-text opacity-100 whitespace-nowrap transition-opacity duration-300">Users</span>
-                    <div class="absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-900 text-white text-xs px-2 py-1 rounded hidden group-hover/sidebar:hidden group-hover:block z-50 whitespace-nowrap shadow-lg">User Management</div>
+                    <div class="sidebar-tooltip absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-900 text-white text-xs px-2 py-1 rounded hidden z-50 whitespace-nowrap shadow-lg">User Management</div>
                 </button>
 
                 <button data-tab="bios" class="nav-btn w-full text-left px-3 py-3 rounded-xl text-sm font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1f2022] hover:text-gray-900 dark:hover:text-white transition-all flex items-center gap-3 group relative">
@@ -161,7 +166,7 @@
                          <svg class="w-5 h-5 opacity-75 group-hover:opacity-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                     </div>
                     <span class="sidebar-text opacity-100 whitespace-nowrap transition-opacity duration-300">Global Bios</span>
-                     <div class="absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-900 text-white text-xs px-2 py-1 rounded hidden group-hover/sidebar:hidden group-hover:block z-50 whitespace-nowrap shadow-lg">Global Bios</div>
+                     <div class="sidebar-tooltip absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-900 text-white text-xs px-2 py-1 rounded hidden z-50 whitespace-nowrap shadow-lg">Global Bios</div>
                 </button>
             </nav>
 
@@ -172,7 +177,7 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                     </div>
                     <span class="sidebar-text opacity-100 whitespace-nowrap transition-opacity duration-300">Back to App</span>
-                     <div class="absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-900 text-white text-xs px-2 py-1 rounded hidden group-hover/sidebar:hidden group-hover:block z-50 whitespace-nowrap shadow-lg">Back to App</div>
+                     <div class="sidebar-tooltip absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-900 text-white text-xs px-2 py-1 rounded hidden z-50 whitespace-nowrap shadow-lg">Back to App</div>
                 </a>
 
                 <div class="bg-gray-50 dark:bg-[#1f2022] rounded-xl p-3 border border-gray-100 dark:border-gray-800 flex items-center gap-3 overflow-hidden transition-all duration-300">
@@ -603,25 +608,44 @@
         // Desktop Collapse
         sidebarCollapseBtn.onclick = () => {
             isSidebarCollapsed = !isSidebarCollapsed;
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.querySelector('main');
+            const sidebarTexts = document.querySelectorAll('.sidebar-text');
+            
             if (isSidebarCollapsed) {
+                // Collapse
                 sidebar.classList.remove('w-72');
-                sidebar.classList.add('w-20');
-                sidebarTexts.forEach(el => el.classList.add('opacity-0', 'pointer-events-none', 'hidden'));
+                sidebar.classList.add('w-20', 'sidebar-collapsed');
+                
+                // Text Hiding
+                sidebarTexts.forEach(el => {
+                    el.classList.add('hidden'); // Use hidden to remove layout space
+                });
+                
+                // Adjust Nav Items justify to center icons
+                document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.add('justify-center'));
+
+                // Icon Change
                 sidebarCollapseBtn.innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>';
                 
-                // Adjust Main Content Margin
+                // Main Content
                 mainContent.classList.remove('md:ml-72');
                 mainContent.classList.add('md:ml-20');
+
             } else {
-                sidebar.classList.remove('w-20');
+                // Expand
+                sidebar.classList.remove('w-20', 'sidebar-collapsed');
                 sidebar.classList.add('w-72');
+                
                 sidebarTexts.forEach(el => {
                     el.classList.remove('hidden');
-                    setTimeout(() => el.classList.remove('opacity-0', 'pointer-events-none'), 50);
                 });
+
+                document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('justify-center'));
+                
                 sidebarCollapseBtn.innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke-width="2"></rect><line x1="9" y1="3" x2="9" y2="21" stroke-width="2"></line></svg>';
                 
-                // Adjust Main Content Margin
+                // Main Content
                 mainContent.classList.remove('md:ml-20');
                 mainContent.classList.add('md:ml-72');
             }
@@ -630,12 +654,17 @@
         // Navigation Tabs
         navBtns.forEach(btn => {
             btn.onclick = () => {
-                // Reset Styles
+                // Reset Styles (preserve collapse state classes)
                 navBtns.forEach(b => {
+                     // Check if collapsed, keep justify-center
+                     const isJustified = b.classList.contains('justify-center');
                      b.className = "nav-btn w-full text-left px-3 py-3 rounded-xl text-sm font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1f2022] hover:text-gray-900 dark:hover:text-white transition-all flex items-center gap-3 group relative";
+                     if(isJustified) b.classList.add('justify-center');
                 });
                 // Active Style
+                const isJustified = btn.classList.contains('justify-center');
                 btn.className = "nav-btn w-full text-left px-3 py-3 rounded-xl text-sm font-semibold transition-all flex items-center gap-3 group relative bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300";
+                if(isJustified) btn.classList.add('justify-center');
                 
                 // Switch View
                 const tab = btn.dataset.tab;
