@@ -22,7 +22,13 @@ async function authorize(req) {
         throw new Error('Unauthorized');
     }
     const token = authHeader.split(' ')[1];
-    const decoded = await admin.auth().verifyIdToken(token);
+    
+    let decoded;
+    try {
+        decoded = await admin.auth().verifyIdToken(token);
+    } catch (error) {
+        throw new Error('Invalid token');
+    }
     
     // Check Email against Allowed List
     const allowed = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
@@ -38,185 +44,191 @@ export default async function handler(req, res) {
     try {
         await authorize(req);
     } catch (e) {
-        return res.status(403).json({ error: e.message });
+        const status = e.message.includes('Forbidden') ? 403 : 401;
+        return res.status(status).json({ error: e.message });
     }
 
     const { action, uid, bioId, userId } = req.body; 
     const appId = process.env.SECURE_APP_ID || 'default-app-id';
 
     try {
-        if (action === 'checkAuth') {
-            return res.status(200).json({ ok: true });
-        }
+        switch (action) {
+            case 'checkAuth':
+                return res.status(200).json({ ok: true });
 
-        if (action === 'getStats') {
-            // 1. Get recent failure logs
-            const alertsSnap = await db.collection(`artifacts/${appId}/alerts/webhookFailures`)
-                .orderBy('createdAt', 'desc')
-                .limit(10)
-                .get();
-            
-            const logs = alertsSnap.docs.map(d => {
-                const data = d.data();
-                return { 
-                    id: d.id, 
-                    reason: data.reason, 
-                    time: data.createdAt ? data.createdAt.toDate() : new Date() 
-                };
-            });
+            case 'getStats': {
+                // Parallelize stats gathering for performance
+                const [alertsSnap, listUsersResult, proCountSnap, bioCountSnap] = await Promise.all([
+                    db.collection(`artifacts/${appId}/alerts/webhookFailures`)
+                        .orderBy('createdAt', 'desc')
+                        .limit(10)
+                        .get(),
+                    admin.auth().listUsers(1000), // List up to 1000 users for stats
+                    db.collectionGroup('status').where('isPro', '==', true).count().get(),
+                    db.collectionGroup('bios').count().get()
+                ]);
+                
+                const logs = alertsSnap.docs.map(d => {
+                    const data = d.data();
+                    return { 
+                        id: d.id, 
+                        reason: data.reason, 
+                        time: data.createdAt ? data.createdAt.toDate() : new Date() 
+                    };
+                });
 
-            // 2. Count approximate users & Aggregate Growth Data (Last 7 Days)
-            let listUsersResult = await admin.auth().listUsers(1000);
-            const userCount = listUsersResult.users.length; 
-            
-            // Calculate growth chart data
-            const last7Days = {};
-            const today = new Date();
-            for(let i=6; i>=0; i--) {
-                const d = new Date(today);
-                d.setDate(d.getDate() - i);
-                last7Days[d.toLocaleDateString()] = 0;
-            }
+                const userCount = listUsersResult.users.length; 
+                const proCount = proCountSnap.data().count;
+                const bioCount = bioCountSnap.data().count;
+                
+                // Calculate Growth Chart Data (Last 7 Days)
+                const last7Days = {};
+                const today = new Date();
+                for(let i=6; i>=0; i--) {
+                    const d = new Date(today);
+                    d.setDate(d.getDate() - i);
+                    const key = d.toISOString().split('T')[0];
+                    last7Days[key] = 0;
+                }
 
-            listUsersResult.users.forEach(u => {
-                const date = new Date(u.metadata.creationTime).toLocaleDateString();
-                if (last7Days[date] !== undefined) last7Days[date]++;
-            });
+                listUsersResult.users.forEach(u => {
+                    if (u.metadata.creationTime) {
+                        const date = new Date(u.metadata.creationTime).toISOString().split('T')[0];
+                        if (last7Days[date] !== undefined) last7Days[date]++;
+                    }
+                });
 
-            const chartData = Object.keys(last7Days).map(date => ({
-                date: date.split('/')[0] + '/' + date.split('/')[1], // Simple MM/DD
-                count: last7Days[date]
-            }));
+                const chartData = Object.keys(last7Days).map(dateStr => {
+                     const parts = dateStr.split('-');
+                     return {
+                        date: `${parts[1]}/${parts[2]}`, // MM/DD
+                        count: last7Days[dateStr]
+                     };
+                });
 
-            // 3. Count Pro (Requires Firestore query)
-            const proSnap = await db.collectionGroup('status').where('isPro', '==', true).limit(100).get();
-            const proCount = proSnap.size + (proSnap.size === 100 ? '+' : '');
-
-            // 4. Bio count (Estimation)
-            const bioCount = "Active"; 
-            
-            return res.status(200).json({
-                userCount: userCount + (listUsersResult.pageToken ? '+' : ''),
-                proCount: proCount,
-                bioCount: bioCount,
-                logs,
-                chartData
-            });
-        }
-
-        if (action === 'getUsers') {
-            const listUsersResult = await admin.auth().listUsers(100); 
-            const users = [];
-            
-            for (const u of listUsersResult.users) {
-                let isPro = false;
-                try {
-                     const snap = await db.doc(`artifacts/${appId}/users/${u.uid}/profile/status`).get();
-                     if(snap.exists && snap.data().isPro) isPro = true;
-                } catch(e) {}
-
-                users.push({
-                    uid: u.uid,
-                    email: u.email,
-                    displayName: u.displayName,
-                    photoURL: u.photoURL,
-                    lastLogin: u.metadata.lastSignInTime,
-                    createdAt: u.metadata.creationTime,
-                    disabled: u.disabled,
-                    isPro
+                return res.status(200).json({
+                    userCount: userCount + (listUsersResult.pageToken ? '+' : ''),
+                    proCount: proCount,
+                    bioCount: bioCount,
+                    logs,
+                    chartData
                 });
             }
-            return res.status(200).json({ users });
+
+            case 'getUsers': {
+                const listUsersResult = await admin.auth().listUsers(100); 
+                
+                // Parallel Execution: Fetch status for all users concurrently to avoid N+1 latency
+                const users = await Promise.all(listUsersResult.users.map(async (u) => {
+                    let isPro = false;
+                    try {
+                         const snap = await db.doc(`artifacts/${appId}/users/${u.uid}/profile/status`).get();
+                         if(snap.exists && snap.data().isPro) isPro = true;
+                    } catch(e) {
+                        // Log error but allow list to proceed
+                        console.error(`Status fetch failed for ${u.uid}:`, e.message);
+                    }
+
+                    return {
+                        uid: u.uid,
+                        email: u.email,
+                        displayName: u.displayName,
+                        photoURL: u.photoURL,
+                        lastLogin: u.metadata.lastSignInTime,
+                        createdAt: u.metadata.creationTime,
+                        disabled: u.disabled,
+                        isPro
+                    };
+                }));
+                
+                return res.status(200).json({ users });
+            }
+
+            case 'getUserDetails': {
+                if(!uid) return res.status(400).json({error: "User ID required"});
+
+                const userRecord = await admin.auth().getUser(uid);
+                
+                // Parallel Fetch: Details, Status, Profile Data, and Bio Count
+                const [statusDoc, profileDoc, countSnap] = await Promise.all([
+                    db.doc(`artifacts/${appId}/users/${uid}/profile/status`).get(),
+                    db.doc(`artifacts/${appId}/users/${uid}/profile/data`).get(),
+                    db.collection(`artifacts/${appId}/users/${uid}/bios`).count().get()
+                ]);
+
+                return res.status(200).json({
+                    user: {
+                        uid: userRecord.uid,
+                        email: userRecord.email,
+                        displayName: userRecord.displayName,
+                        photoURL: userRecord.photoURL,
+                        metadata: userRecord.metadata,
+                        disabled: userRecord.disabled,
+                        providerData: userRecord.providerData
+                    },
+                    status: statusDoc.exists ? statusDoc.data() : null,
+                    profile: profileDoc.exists ? profileDoc.data() : null,
+                    bioCount: countSnap.data().count
+                });
+            }
+
+            case 'getRecentBios': {
+                const snap = await db.collectionGroup('bios')
+                    .orderBy('timestamp', 'desc')
+                    .limit(50)
+                    .get();
+                
+                const bios = snap.docs.map(d => {
+                    const pathSegments = d.ref.path.split('/');
+                    const uId = pathSegments[3]; 
+                    const data = d.data();
+                    return {
+                        id: d.id,
+                        userId: uId,
+                        bio: data.bio,
+                        platform: data.platform,
+                        niche: data.niche,
+                        tone: data.tone,
+                        timestamp: data.timestamp?.toDate ? data.timestamp.toDate() : new Date()
+                    };
+                });
+                
+                return res.status(200).json({ bios });
+            }
+
+            case 'togglePro': {
+                if(!uid) return res.status(400).json({error: "UID required"});
+                const statusRef = db.doc(`artifacts/${appId}/users/${uid}/profile/status`);
+                const doc = await statusRef.get();
+                const currentPro = doc.exists ? doc.data().isPro : false;
+                
+                await statusRef.set({ 
+                    isPro: !currentPro,
+                    adminModifiedAt: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+
+                return res.status(200).json({ success: true, newStatus: !currentPro });
+            }
+
+            case 'toggleDisableUser': {
+                if(!uid) return res.status(400).json({error: "UID required"});
+                const user = await admin.auth().getUser(uid);
+                await admin.auth().updateUser(uid, { disabled: !user.disabled });
+                return res.status(200).json({ success: true, newStatus: !user.disabled });
+            }
+
+            case 'deleteBio': {
+                if(!bioId || !userId) return res.status(400).json({error: "BioID and UserID required"});
+                await db.doc(`artifacts/${appId}/users/${userId}/bios/${bioId}`).delete();
+                return res.status(200).json({ success: true });
+            }
+
+            default:
+                return res.status(400).json({ error: `Unknown Action: ${action}` });
         }
-
-        if (action === 'getUserDetails') {
-            if(!uid) return res.status(400).json({error: "User ID required"});
-
-            const userRecord = await admin.auth().getUser(uid);
-            
-            const statusDoc = await db.doc(`artifacts/${appId}/users/${uid}/profile/status`).get();
-            const statusData = statusDoc.exists ? statusDoc.data() : null;
-
-            const profileDoc = await db.doc(`artifacts/${appId}/users/${uid}/profile/data`).get();
-            const profileData = profileDoc.exists ? profileDoc.data() : null;
-
-            const biosRef = db.collection(`artifacts/${appId}/users/${uid}/bios`);
-            const countSnap = await biosRef.count().get();
-            const bioCount = countSnap.data().count;
-
-            return res.status(200).json({
-                user: {
-                    uid: userRecord.uid,
-                    email: userRecord.email,
-                    displayName: userRecord.displayName,
-                    photoURL: userRecord.photoURL,
-                    metadata: userRecord.metadata,
-                    disabled: userRecord.disabled,
-                    providerData: userRecord.providerData
-                },
-                status: statusData,
-                profile: profileData,
-                bioCount
-            });
-        }
-
-        if (action === 'getRecentBios') {
-            const snap = await db.collectionGroup('bios')
-                .orderBy('timestamp', 'desc')
-                .limit(50)
-                .get();
-            
-            const bios = snap.docs.map(d => {
-                const pathSegments = d.ref.path.split('/');
-                const uId = pathSegments[3]; 
-                const data = d.data();
-                return {
-                    id: d.id,
-                    userId: uId,
-                    bio: data.bio,
-                    platform: data.platform,
-                    niche: data.niche,
-                    tone: data.tone,
-                    timestamp: data.timestamp?.toDate ? data.timestamp.toDate() : new Date()
-                };
-            });
-            
-            return res.status(200).json({ bios });
-        }
-
-        // --- NEW MANAGEMENT ACTIONS ---
-
-        if (action === 'togglePro') {
-            if(!uid) return res.status(400).json({error: "UID required"});
-            const statusRef = db.doc(`artifacts/${appId}/users/${uid}/profile/status`);
-            const doc = await statusRef.get();
-            const currentPro = doc.exists ? doc.data().isPro : false;
-            
-            await statusRef.set({ 
-                isPro: !currentPro,
-                adminModifiedAt: admin.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
-
-            return res.status(200).json({ success: true, newStatus: !currentPro });
-        }
-
-        if (action === 'toggleDisableUser') {
-            if(!uid) return res.status(400).json({error: "UID required"});
-            const user = await admin.auth().getUser(uid);
-            await admin.auth().updateUser(uid, { disabled: !user.disabled });
-            return res.status(200).json({ success: true, newStatus: !user.disabled });
-        }
-
-        if (action === 'deleteBio') {
-            if(!bioId || !userId) return res.status(400).json({error: "BioID and UserID required"});
-            await db.doc(`artifacts/${appId}/users/${userId}/bios/${bioId}`).delete();
-            return res.status(200).json({ success: true });
-        }
-
-        return res.status(400).json({ error: 'Unknown Action' });
 
     } catch (error) {
         console.error('Admin API Error:', error);
-        return res.status(500).json({ error: 'Internal Server Error' });
+        return res.status(500).json({ error: error.message || 'Internal Server Error' });
     }
 }
