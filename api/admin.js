@@ -57,19 +57,36 @@ export default async function handler(req, res) {
                 return res.status(200).json({ ok: true });
 
             case 'getStats': {
-                // Parallelize stats gathering for performance
-                // FIXED: Simplified path to 'artifacts/{appId}/webhookFailures' to ensure odd number of segments for collection
-                const [alertsSnap, listUsersResult, proCountSnap, bioCountSnap] = await Promise.all([
-                    db.collection(`artifacts/${appId}/webhookFailures`)
+                // Helper to safely execute a promise and return a default value on failure
+                // This prevents FAILED_PRECONDITION (missing index) errors from crashing the entire dashboard
+                const safeGet = async (promise, fallback, label) => {
+                    try {
+                        return await promise;
+                    } catch (e) {
+                        console.warn(`Stats fetch failed for ${label}:`, e.message);
+                        return fallback;
+                    }
+                };
+
+                const alertsPromise = db.collection(`artifacts/${appId}/webhookFailures`)
                         .orderBy('createdAt', 'desc')
                         .limit(10)
-                        .get(),
-                    admin.auth().listUsers(1000), // List up to 1000 users for stats
-                    db.collectionGroup('status').where('isPro', '==', true).count().get(),
-                    db.collectionGroup('bios').count().get()
+                        .get();
+                
+                const listUsersPromise = admin.auth().listUsers(1000);
+                
+                const proCountPromise = db.collectionGroup('status').where('isPro', '==', true).count().get();
+                const bioCountPromise = db.collectionGroup('bios').count().get();
+
+                // Execute in parallel with safety wrappers
+                const [alertsSnap, listUsersResult, proCountSnap, bioCountSnap] = await Promise.all([
+                    safeGet(alertsPromise, { docs: [] }, 'alerts'),
+                    safeGet(listUsersPromise, { users: [] }, 'users'),
+                    safeGet(proCountPromise, { data: () => ({ count: 0 }) }, 'proCount'),
+                    safeGet(bioCountPromise, { data: () => ({ count: 0 }) }, 'bioCount')
                 ]);
                 
-                const logs = alertsSnap.docs.map(d => {
+                const logs = (alertsSnap.docs || []).map(d => {
                     const data = d.data();
                     return { 
                         id: d.id, 
@@ -78,9 +95,9 @@ export default async function handler(req, res) {
                     };
                 });
 
-                const userCount = listUsersResult.users.length; 
-                const proCount = proCountSnap.data().count;
-                const bioCount = bioCountSnap.data().count;
+                const userCount = listUsersResult.users ? listUsersResult.users.length : 0; 
+                const proCount = proCountSnap.data ? proCountSnap.data().count : 0;
+                const bioCount = bioCountSnap.data ? bioCountSnap.data().count : 0;
                 
                 // Calculate Growth Chart Data (Last 7 Days)
                 const last7Days = {};
@@ -92,12 +109,14 @@ export default async function handler(req, res) {
                     last7Days[key] = 0;
                 }
 
-                listUsersResult.users.forEach(u => {
-                    if (u.metadata.creationTime) {
-                        const date = new Date(u.metadata.creationTime).toISOString().split('T')[0];
-                        if (last7Days[date] !== undefined) last7Days[date]++;
-                    }
-                });
+                if (listUsersResult.users) {
+                    listUsersResult.users.forEach(u => {
+                        if (u.metadata.creationTime) {
+                            const date = new Date(u.metadata.creationTime).toISOString().split('T')[0];
+                            if (last7Days[date] !== undefined) last7Days[date]++;
+                        }
+                    });
+                }
 
                 const chartData = Object.keys(last7Days).map(dateStr => {
                      const parts = dateStr.split('-');
@@ -174,27 +193,33 @@ export default async function handler(req, res) {
             }
 
             case 'getRecentBios': {
-                const snap = await db.collectionGroup('bios')
-                    .orderBy('timestamp', 'desc')
-                    .limit(50)
-                    .get();
-                
-                const bios = snap.docs.map(d => {
-                    const pathSegments = d.ref.path.split('/');
-                    const uId = pathSegments[3]; 
-                    const data = d.data();
-                    return {
-                        id: d.id,
-                        userId: uId,
-                        bio: data.bio,
-                        platform: data.platform,
-                        niche: data.niche,
-                        tone: data.tone,
-                        timestamp: data.timestamp?.toDate ? data.timestamp.toDate() : new Date()
-                    };
-                });
-                
-                return res.status(200).json({ bios });
+                try {
+                    const snap = await db.collectionGroup('bios')
+                        .orderBy('timestamp', 'desc')
+                        .limit(50)
+                        .get();
+                    
+                    const bios = snap.docs.map(d => {
+                        const pathSegments = d.ref.path.split('/');
+                        const uId = pathSegments[3]; 
+                        const data = d.data();
+                        return {
+                            id: d.id,
+                            userId: uId,
+                            bio: data.bio,
+                            platform: data.platform,
+                            niche: data.niche,
+                            tone: data.tone,
+                            timestamp: data.timestamp?.toDate ? data.timestamp.toDate() : new Date()
+                        };
+                    });
+                    
+                    return res.status(200).json({ bios });
+                } catch (e) {
+                    console.error('getRecentBios failed (likely missing index):', e.message);
+                    // Return empty list instead of failing
+                    return res.status(200).json({ bios: [] });
+                }
             }
 
             case 'togglePro': {
