@@ -73,7 +73,8 @@ async function recordWebhookFailure(appId, transactionId, reason) {
             console.warn('Cannot record webhook failure; Firestore not initialized.');
             return;
         }
-        const alertRef = db.doc(`artifacts/${appId}/alerts/webhookFailures/${transactionId || `unknown-${Date.now()}`}`);
+        // FIXED: Simplified path to 'artifacts/{appId}/webhookFailures/{txId}' to ensure even number of segments for document
+        const alertRef = db.doc(`artifacts/${appId}/webhookFailures/${transactionId || `unknown-${Date.now()}`}`);
         await alertRef.set({
             reason: reason?.toString?.() || 'unknown',
             createdAt: admin.firestore.FieldValue.serverTimestamp()

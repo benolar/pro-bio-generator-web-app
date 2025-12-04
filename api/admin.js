@@ -58,8 +58,9 @@ export default async function handler(req, res) {
 
             case 'getStats': {
                 // Parallelize stats gathering for performance
+                // FIXED: Simplified path to 'artifacts/{appId}/webhookFailures' to ensure odd number of segments for collection
                 const [alertsSnap, listUsersResult, proCountSnap, bioCountSnap] = await Promise.all([
-                    db.collection(`artifacts/${appId}/alerts/webhookFailures`)
+                    db.collection(`artifacts/${appId}/webhookFailures`)
                         .orderBy('createdAt', 'desc')
                         .limit(10)
                         .get(),
