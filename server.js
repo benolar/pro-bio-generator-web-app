@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 // Import API Handlers
@@ -78,27 +80,59 @@ app.post('/api/admin', async (req, res) => {
     }
 });
 
+// --- SERVER-SIDE RENDERING WITH CSP NONCE ---
+
+const serveWithNonce = (res, filePath) => {
+    fs.readFile(filePath, 'utf8', (err, html) => {
+        if (err) {
+            console.error('File read error:', err);
+            return res.status(500).send('Internal Server Error');
+        }
+
+        // 1. Generate a random nonce
+        const nonce = crypto.randomBytes(16).toString('base64');
+        
+        // 2. Inject nonce into ALL script tags
+        // This regex adds nonce="${nonce}" to every <script tag found in the HTML
+        const updatedHtml = html.replace(/<script/g, `<script nonce="${nonce}"`);
+
+        // 3. Set Content-Security-Policy Header
+        // script-src includes 'self' (for external files) and 'nonce-...' (for inline and nonced external)
+        // style-src keeps 'unsafe-inline' as we are not noncing styles in this pass, but it's required for the <style> block in head.
+        res.setHeader(
+            'Content-Security-Policy', 
+            `default-src 'self' https:; script-src 'self' 'nonce-${nonce}' https: 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https:; font-src 'self' https: data:; img-src 'self' https: data:; connect-src 'self' https:;`
+        );
+
+        res.send(updatedHtml);
+    });
+};
+
+// Explicit Routes for HTML files to apply Nonce
+app.get('/', (req, res) => serveWithNonce(res, path.join(__dirname, 'index.html')));
+app.get('/index.html', (req, res) => serveWithNonce(res, path.join(__dirname, 'index.html')));
+app.get('/admin', (req, res) => serveWithNonce(res, path.join(__dirname, 'admin.html')));
+app.get('/admin.html', (req, res) => serveWithNonce(res, path.join(__dirname, 'admin.html')));
+
 // --- STATIC FILES ---
 
-// Serve 'public' folder if built, otherwise serve root (for development)
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.static(__dirname));
+// Serve 'public' folder if built
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
-// Explicit route for admin.html to ensure clean URL or direct access
-app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, 'admin.html'));
-});
+// Serve root files (css, js modules) BUT disable default index serving
+// so our custom route above handles '/' and '/index.html'
+app.use(express.static(__dirname, { index: false }));
 
 // Fallback for SPA (Single Page Application) behavior
 app.get('*', (req, res) => {
-    // Check if a file in public exists first
+    // Check if a file in public exists first (rare case if static middleware missed it)
     const publicIndex = path.join(__dirname, 'public', 'index.html');
-    res.sendFile(publicIndex, (err) => {
-        if (err) {
-            // Fallback to root index.html
-            res.sendFile(path.join(__dirname, 'index.html'));
-        }
-    });
+    if (fs.existsSync(publicIndex)) {
+        serveWithNonce(res, publicIndex);
+    } else {
+        // Fallback to root index.html with nonce
+        serveWithNonce(res, path.join(__dirname, 'index.html'));
+    }
 });
 
 // Start Server

@@ -769,6 +769,18 @@ function openAuthModal(register = false) {
     isRegisterMode = register;
     updateAuthModalUI();
     
+    // Programmatic readonly toggle for CSP compliance
+    ['auth-email', 'auth-password'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) {
+            el.setAttribute('readonly', 'true'); 
+            el.onfocus = function() { this.removeAttribute('readonly'); }; 
+            // Note: el.onfocus is a property, technically allowed by some CSPs if set via JS, 
+            // but addEventListener is safer and cleaner.
+            el.addEventListener('focus', function() { this.removeAttribute('readonly'); });
+        }
+    });
+    
     // Reset readonly hack for fresh open
     const emailInput = document.getElementById('auth-email');
     const passwordInput = document.getElementById('auth-password');
