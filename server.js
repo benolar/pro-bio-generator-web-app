@@ -99,9 +99,10 @@ const serveWithNonce = (res, filePath) => {
         // 3. Set Content-Security-Policy Header
         // script-src includes 'self' (for external files) and 'nonce-...' (for inline and nonced external)
         // style-src keeps 'unsafe-inline' as we are not noncing styles in this pass, but it's required for the <style> block in head.
+        // Removed 'unsafe-eval' to strictly forbid eval() and string-based timers.
         res.setHeader(
             'Content-Security-Policy', 
-            `default-src 'self' https:; script-src 'self' 'nonce-${nonce}' https: 'unsafe-eval'; style-src 'self' 'unsafe-inline' https:; font-src 'self' https: data:; img-src 'self' https: data:; connect-src 'self' https:;`
+            `default-src 'self' https:; script-src 'self' 'nonce-${nonce}' https:; style-src 'self' 'unsafe-inline' https:; font-src 'self' https: data:; img-src 'self' https: data:; connect-src 'self' https:;`
         );
 
         res.send(updatedHtml);

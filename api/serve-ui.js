@@ -3,7 +3,6 @@ import path from 'path';
 import crypto from 'crypto';
 
 export default async function handler(req, res) {
-    // Determine which file to serve based on the query param set in vercel.json rewrites
     const page = req.query.page || 'index';
     
     // Security: Allow only specific files to be served
@@ -31,11 +30,12 @@ export default async function handler(req, res) {
         const updatedHtml = html.replace(/<script/g, `<script nonce="${nonce}"`);
 
         // 3. Set Content-Security-Policy Header
-        // We include 'unsafe-inline' for style-src to allow the styles in head (older browser compatibility), 
+        // We include 'unsafe-inline' for style-src to allow the styles in head, 
         // but modern browsers will ignore 'unsafe-inline' for script-src when a nonce is present.
+        // Removed 'unsafe-eval' to strictly forbid eval() and string-based timers.
         res.setHeader(
             'Content-Security-Policy', 
-            `default-src 'self' https:; script-src 'self' 'nonce-${nonce}' https: 'unsafe-eval'; style-src 'self' 'unsafe-inline' https:; font-src 'self' https: data:; img-src 'self' https: data:; connect-src 'self' https:;`
+            `default-src 'self' https:; script-src 'self' 'nonce-${nonce}' https:; style-src 'self' 'unsafe-inline' https:; font-src 'self' https: data:; img-src 'self' https: data:; connect-src 'self' https:;`
         );
         
         res.setHeader('Content-Type', 'text/html');
