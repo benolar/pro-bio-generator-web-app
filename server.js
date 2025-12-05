@@ -101,7 +101,7 @@ const serveWithNonce = (res, filePath) => {
         // style-src keeps 'unsafe-inline' as we are not noncing styles in this pass, but it's required for the <style> block in head.
         res.setHeader(
             'Content-Security-Policy', 
-            `default-src 'self' https:; script-src 'self' 'nonce-${nonce}' https: 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https:; font-src 'self' https: data:; img-src 'self' https: data:; connect-src 'self' https:;`
+            `default-src 'self' https:; script-src 'self' 'nonce-${nonce}' https: 'unsafe-eval'; style-src 'self' 'unsafe-inline' https:; font-src 'self' https: data:; img-src 'self' https: data:; connect-src 'self' https:;`
         );
 
         res.send(updatedHtml);
