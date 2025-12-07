@@ -105,10 +105,6 @@ const serveWithNonce = (res, filePath) => {
             `default-src 'self' https:; script-src 'self' 'nonce-${nonce}' https:; style-src 'self' 'unsafe-inline' https:; font-src 'self' https: data:; img-src 'self' https: data:; connect-src 'self' https:;`
         );
 
-        // Security Headers
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-        res.setHeader('Cache-Control', 'public, max-age=0');
-
         res.send(updatedHtml);
     });
 };
@@ -121,34 +117,12 @@ app.get('/admin.html', (req, res) => serveWithNonce(res, path.join(__dirname, 'a
 
 // --- STATIC FILES ---
 
-// Local Dev Rewrites for Hashed Files (so dev works without running full build)
-app.get('/app.9d4e1a.js', (req, res) => res.sendFile(path.join(__dirname, 'app.js')));
-app.get('/admin.9d4e1a.js', (req, res) => res.sendFile(path.join(__dirname, 'admin.js')));
-app.get('/favicon.9d4e1a.ico', (req, res) => res.sendFile(path.join(__dirname, 'favicon.ico')));
-app.get('/output.9d4e1a.css', (req, res) => {
-    // Check for build output first, then try root (if user manually generated), then fallback to unhashed path
-    if (fs.existsSync(path.join(__dirname, 'public/output.9d4e1a.css'))) {
-        res.sendFile(path.join(__dirname, 'public/output.9d4e1a.css'));
-    } else if (fs.existsSync(path.join(__dirname, 'public/output.css'))) {
-        res.sendFile(path.join(__dirname, 'public/output.css'));
-    } else {
-        // Fallback or 404
-        res.status(404).send('CSS not found');
-    }
-});
-
-
-const setHeaders = (res, path) => {
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Cache-Control', 'public, max-age=0');
-};
-
 // Serve 'public' folder if built
-app.use(express.static(path.join(__dirname, 'public'), { index: false, setHeaders }));
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // Serve root files (css, js modules) BUT disable default index serving
 // so our custom route above handles '/' and '/index.html'
-app.use(express.static(__dirname, { index: false, setHeaders }));
+app.use(express.static(__dirname, { index: false }));
 
 // Fallback for SPA (Single Page Application) behavior
 app.get('*', (req, res) => {
