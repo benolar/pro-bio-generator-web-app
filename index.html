@@ -2,7 +2,7 @@
 <html lang="en" class="antialiased">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Instant Niche Bio Generator | AI Profile Creator</title>
     <meta name="description" content="Generate professional, witty, or creative bios for LinkedIn, Instagram, Twitter, and more using advanced AI. Instant Niche Bio Generator helps you craft the perfect personal brand in seconds.">
     <meta name="keywords" content="bio generator, AI bio writer, profile description generator, LinkedIn summary generator, Instagram bio maker, personal branding tool, niche bio creator">
@@ -102,7 +102,7 @@
             <div class="flex items-center gap-2 font-bold text-xl tracking-tight text-gray-900 dark:text-white">
                 <span class="text-indigo-600 dark:text-indigo-400 text-2xl">⚡</span> BioGen
             </div>
-            <button id="close-sidebar-btn" class="md:hidden text-gray-400 hover:text-gray-900 dark:hover:text-white p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <button id="close-sidebar-btn" aria-label="Close Sidebar" class="md:hidden text-gray-400 hover:text-gray-900 dark:hover:text-white p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
         </div>
@@ -153,7 +153,7 @@
         <!-- Top Header -->
         <header class="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 bg-white/80 dark:bg-[#1e1f20]/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 z-20 transition-colors">
             <div class="flex items-center gap-3">
-                <button id="toggle-sidebar-btn" class="p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all active:scale-95">
+                <button id="toggle-sidebar-btn" aria-label="Toggle Sidebar" class="p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all active:scale-95">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                 </button>
                 
@@ -312,7 +312,7 @@
                                 <span class="text-sm font-bold text-gray-700 dark:text-gray-200" data-i18n="lbl_avatar">Generate AI Avatar</span>
                             </div>
                             <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="avatar-toggle" class="sr-only peer" checked>
+                                <input type="checkbox" id="avatar-toggle" class="sr-only peer" checked aria-label="Toggle AI Avatar Generation">
                                 <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
                             </label>
                         </div>
@@ -362,7 +362,7 @@
             <!-- Content remains same, dynamically updated by JS -->
             <div class="bg-gray-50 dark:bg-[#151616] px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
                 <h3 class="text-lg font-bold text-gray-800 dark:text-white" id="auth-modal-title">Sign In</h3>
-                <button id="close-auth-modal" class="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors focus-visible-ring rounded-md">
+                <button id="close-auth-modal" aria-label="Close Modal" class="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors focus-visible-ring rounded-md">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
@@ -403,7 +403,7 @@
                     <h3 class="text-xl font-bold text-amber-800 dark:text-amber-500 flex items-center gap-2">
                         <span>👑</span> Unlock Pro
                     </h3>
-                    <button id="close-payment-modal" class="text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-300 bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 dark:hover:bg-amber-900/60 rounded-lg p-1 transition-colors">
+                    <button id="close-payment-modal" aria-label="Close Modal" class="text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-300 bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 dark:hover:bg-amber-900/60 rounded-lg p-1 transition-colors">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>
                 </div>
@@ -474,7 +474,7 @@
                         <div class="absolute bottom-0 right-0 bg-white dark:bg-[#2c2d2e] rounded-full p-1.5 shadow-md border border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-gray-100 dark:group-hover:bg-[#373839] transition-colors">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                         </div>
-                        <input type="file" id="avatar-upload" class="hidden" accept="image/*">
+                        <input type="file" id="avatar-upload" class="hidden" accept="image/*" aria-label="Upload Profile Picture">
                     </div>
                 </div>
 

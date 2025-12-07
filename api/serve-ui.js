@@ -38,6 +38,12 @@ export default async function handler(req, res) {
             `default-src 'self' https:; script-src 'self' 'nonce-${nonce}' https:; style-src 'self' 'unsafe-inline' https:; font-src 'self' https: data:; img-src 'self' https: data:; connect-src 'self' https:;`
         );
         
+        // Set explicit Cache-Control to avoid default 'must-revalidate' warning
+        res.setHeader('Cache-Control', 'public, max-age=0');
+
+        // Prevent MIME type sniffing
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        
         res.setHeader('Content-Type', 'text/html');
         res.send(updatedHtml);
 
