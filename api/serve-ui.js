@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import admin from 'firebase-admin';
+import { fileURLToPath } from 'url';
 
 // Initialize Firebase Admin SDK for fetching global config
 if (!admin.apps.length) {
@@ -18,6 +19,10 @@ if (!admin.apps.length) {
 
 const db = admin.apps.length ? admin.firestore() : null;
 
+// Resolve __dirname for ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export default async function handler(req, res) {
     const page = req.query.page || 'index';
     
@@ -33,8 +38,9 @@ export default async function handler(req, res) {
         return res.status(404).send('Not Found');
     }
 
-    // Resolve path relative to the current working directory (Vercel root)
-    const filePath = path.join(process.cwd(), filename);
+    // Resolve path relative to THIS file (api/serve-ui.js) -> parent directory -> filename
+    // This ensures Vercel's NFT (Node File Trace) detects and bundles the HTML files.
+    const filePath = path.resolve(__dirname, '..', filename);
 
     try {
         let html = fs.readFileSync(filePath, 'utf8');
