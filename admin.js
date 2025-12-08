@@ -1,5 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-storage.js";
 
 // --- CONFIGURATION ---
 const firebaseConfig = {
@@ -14,6 +15,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const storage = getStorage(app);
 const API_URL = '/api/admin';
 
 // --- STATE ---
@@ -33,7 +35,9 @@ const loginErrorText = document.getElementById('login-error-text');
 const views = {
     dashboard: document.getElementById('view-dashboard'),
     users: document.getElementById('view-users'),
-    bios: document.getElementById('view-bios')
+    bios: document.getElementById('view-bios'),
+    settings: document.getElementById('view-settings'),
+    ads: document.getElementById('view-ads')
 };
 
 // --- AUTHENTICATION ---
@@ -147,12 +151,14 @@ function loadTab(tab) {
     });
 
     Object.values(views).forEach(el => el.classList.add('hidden'));
-    views[tab].classList.remove('hidden');
+    if(views[tab]) views[tab].classList.remove('hidden');
 
     // Data Fetching
     if (tab === 'dashboard') loadDashboardStats();
     if (tab === 'users') loadUsers();
     if (tab === 'bios') loadBios();
+    if (tab === 'settings') loadSettings();
+    if (tab === 'ads') loadAds();
 }
 
 // --- API HELPER ---
@@ -393,6 +399,133 @@ document.getElementById('bio-platform-filter').addEventListener('change', (e) =>
     const val = e.target.value;
     const filtered = val === 'All' ? allBios : allBios.filter(b => b.platform === val);
     renderBiosFeed(filtered);
+});
+
+// --- SETTINGS LOGIC ---
+
+async function loadSettings() {
+    const btn = document.getElementById('save-settings-btn');
+    btn.disabled = true;
+    btn.innerHTML = `<span class="opacity-50">Loading...</span>`;
+
+    const data = await callApi('getSettings');
+    
+    // Populate Fields
+    document.getElementById('setting-title').value = data.title || '';
+    document.getElementById('setting-description').value = data.metaDescription || '';
+    
+    if (data.faviconUrl) {
+        document.getElementById('favicon-preview').src = data.faviconUrl;
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = `<span>Save Changes</span>`;
+}
+
+// Favicon Preview
+document.getElementById('favicon-upload').addEventListener('change', (e) => {
+    if(e.target.files.length > 0) {
+        const src = URL.createObjectURL(e.target.files[0]);
+        document.getElementById('favicon-preview').src = src;
+    }
+});
+
+// Save Settings
+document.getElementById('save-settings-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('save-settings-btn');
+    btn.disabled = true;
+    btn.innerHTML = `<span>Saving...</span>`;
+
+    try {
+        // 1. Upload Favicon if changed
+        const fileInput = document.getElementById('favicon-upload');
+        let faviconUrl = undefined;
+
+        if (fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            const ext = file.name.split('.').pop();
+            const storageRef = ref(storage, `uploads/favicons/${Date.now()}.${ext}`);
+            await uploadBytes(storageRef, file);
+            faviconUrl = await getDownloadURL(storageRef);
+        }
+
+        // 2. Prepare Data
+        const settings = {
+            title: document.getElementById('setting-title').value,
+            metaDescription: document.getElementById('setting-description').value,
+        };
+        
+        if (faviconUrl) settings.faviconUrl = faviconUrl;
+
+        // 3. Call API
+        await callApi('updateSettings', { settings });
+        
+        showToast("Settings updated successfully!");
+        
+    } catch (e) {
+        console.error(e);
+        showToast("Failed to save settings: " + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>Save Changes</span>`;
+    }
+});
+
+// --- ADS LOGIC ---
+
+async function loadAds() {
+    const btn = document.getElementById('save-ads-btn');
+    btn.disabled = true;
+    btn.innerHTML = `<span class="opacity-50">Loading...</span>`;
+
+    const data = await callApi('getAdSettings');
+    const ads = data || {};
+
+    // Populate Fields
+    document.getElementById('ad-enable-sidebar').checked = ads.sidebar?.enabled || false;
+    document.getElementById('ad-code-sidebar').value = ads.sidebar?.code || '';
+
+    document.getElementById('ad-enable-header').checked = ads.header?.enabled || false;
+    document.getElementById('ad-code-header').value = ads.header?.code || '';
+
+    document.getElementById('ad-enable-footer').checked = ads.footer?.enabled || false;
+    document.getElementById('ad-code-footer').value = ads.footer?.code || '';
+
+    btn.disabled = false;
+    btn.innerHTML = `<span>Save Ads Configuration</span>`;
+}
+
+document.getElementById('save-ads-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('save-ads-btn');
+    btn.disabled = true;
+    btn.innerHTML = `<span>Saving...</span>`;
+
+    try {
+        const ads = {
+            sidebar: {
+                enabled: document.getElementById('ad-enable-sidebar').checked,
+                code: document.getElementById('ad-code-sidebar').value
+            },
+            header: {
+                enabled: document.getElementById('ad-enable-header').checked,
+                code: document.getElementById('ad-code-header').value
+            },
+            footer: {
+                enabled: document.getElementById('ad-enable-footer').checked,
+                code: document.getElementById('ad-code-footer').value
+            }
+        };
+
+        await callApi('updateAdSettings', { ads });
+        showToast("Ad settings saved!");
+
+    } catch(e) {
+        console.error(e);
+        showToast("Failed to save ads: " + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>Save Ads Configuration</span>`;
+    }
 });
 
 // --- USER MODAL LOGIC ---

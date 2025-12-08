@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard | BioGen</title>
     <link href="./output.9d4e1a.css" rel="stylesheet">
-    <link rel="icon" href="/favicon.9d4e1a.ico">
+    <link rel="icon" href="/favicon.9d4e1a.svg" type="image/svg+xml">
     <script>
         // Init Theme immediately to prevent FOUC
         if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -177,6 +177,22 @@
                     <span class="sidebar-text opacity-100 whitespace-nowrap transition-opacity duration-300">Global Bios</span>
                      <div class="sidebar-tooltip absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-900 text-white text-xs px-2 py-1 rounded hidden z-50 whitespace-nowrap shadow-lg">Global Bios</div>
                 </button>
+
+                <button data-tab="ads" class="nav-btn w-full text-left px-3 py-3 rounded-xl text-sm font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1f2022] hover:text-gray-900 dark:hover:text-white transition-all flex items-center gap-3 group relative">
+                    <div class="w-6 h-6 flex items-center justify-center">
+                         <svg class="w-5 h-5 opacity-75 group-hover:opacity-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path></svg>
+                    </div>
+                    <span class="sidebar-text opacity-100 whitespace-nowrap transition-opacity duration-300">Ads</span>
+                     <div class="sidebar-tooltip absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-900 text-white text-xs px-2 py-1 rounded hidden z-50 whitespace-nowrap shadow-lg">Ads Manager</div>
+                </button>
+
+                <button data-tab="settings" class="nav-btn w-full text-left px-3 py-3 rounded-xl text-sm font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1f2022] hover:text-gray-900 dark:hover:text-white transition-all flex items-center gap-3 group relative">
+                    <div class="w-6 h-6 flex items-center justify-center">
+                         <svg class="w-5 h-5 opacity-75 group-hover:opacity-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    </div>
+                    <span class="sidebar-text opacity-100 whitespace-nowrap transition-opacity duration-300">Settings</span>
+                     <div class="sidebar-tooltip absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-900 text-white text-xs px-2 py-1 rounded hidden z-50 whitespace-nowrap shadow-lg">Settings</div>
+                </button>
             </nav>
 
             <!-- Bottom Actions -->
@@ -250,6 +266,7 @@
             <div class="flex-1 overflow-y-auto custom-scrollbar p-4 md:px-8 md:pb-8 space-y-8" id="content-area">
                 <!-- VIEW: DASHBOARD -->
                 <div id="view-dashboard" class="space-y-6 animate-fade-in">
+                    <!-- ... dashboard content ... -->
                     <div class="flex flex-col md:flex-row md:justify-between md:items-end gap-2">
                         <div>
                             <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Overview</h2>
@@ -387,6 +404,113 @@
                         </div>
                     </div>
                     <div id="bios-feed" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    </div>
+                </div>
+
+                <!-- VIEW: SETTINGS -->
+                <div id="view-settings" class="space-y-6 hidden animate-fade-in">
+                    <div>
+                        <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Global Settings</h2>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Configure site branding and SEO defaults.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Branding & SEO Form -->
+                        <div class="bg-white dark:bg-[#151616] rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm">
+                            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+                                General & SEO
+                            </h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Site Title</label>
+                                    <input type="text" id="setting-title" class="w-full px-3 py-2 bg-gray-50 dark:bg-[#1f2022] border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-colors" placeholder="e.g. BioGen - AI Profile Creator">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Meta Description</label>
+                                    <textarea id="setting-description" rows="3" class="w-full px-3 py-2 bg-gray-50 dark:bg-[#1f2022] border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-colors resize-none" placeholder="Site description for search engines..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Appearance & Favicon -->
+                        <div class="bg-white dark:bg-[#151616] rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm">
+                            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                <svg class="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                Appearance
+                            </h3>
+                            
+                            <div class="mb-4">
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Favicon</label>
+                                <div class="flex items-center gap-4">
+                                    <div class="w-16 h-16 rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden relative group">
+                                        <img id="favicon-preview" src="/favicon.9d4e1a.svg" class="w-10 h-10 object-contain" alt="Favicon Preview">
+                                    </div>
+                                    <div class="flex-1">
+                                        <input type="file" id="favicon-upload" accept="image/x-icon,image/png,image/svg+xml" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900/30 dark:file:text-indigo-400 transition-all cursor-pointer">
+                                        <p class="text-[10px] text-gray-400 mt-1">Recommended: 512x512 PNG, ICO or SVG.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-800">
+                        <button id="save-settings-btn" class="bg-gray-900 dark:bg-white text-white dark:text-black font-bold py-2.5 px-6 rounded-xl hover:bg-black dark:hover:bg-gray-200 transition-all shadow-lg active:scale-95 flex items-center gap-2">
+                            <span>Save Changes</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- VIEW: ADS -->
+                <div id="view-ads" class="space-y-6 hidden animate-fade-in">
+                    <div>
+                        <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Ad Manager</h2>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage ad spaces across the application. HTML & JS allowed.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Sidebar Ad -->
+                        <div class="bg-white dark:bg-[#151616] rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Sidebar Bottom</h3>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="ad-enable-sidebar" class="sr-only peer">
+                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-emerald-500"></div>
+                                </label>
+                            </div>
+                            <textarea id="ad-code-sidebar" rows="4" class="w-full px-3 py-2 bg-gray-50 dark:bg-[#1f2022] border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-mono focus:ring-2 focus:ring-emerald-500 outline-none transition-colors resize-none" placeholder="<!-- Paste Ad Code Here (e.g. Google Adsense) -->"></textarea>
+                        </div>
+
+                        <!-- Header Ad -->
+                        <div class="bg-white dark:bg-[#151616] rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Header Top</h3>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="ad-enable-header" class="sr-only peer">
+                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-emerald-500"></div>
+                                </label>
+                            </div>
+                            <textarea id="ad-code-header" rows="4" class="w-full px-3 py-2 bg-gray-50 dark:bg-[#1f2022] border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-mono focus:ring-2 focus:ring-emerald-500 outline-none transition-colors resize-none" placeholder="<!-- Paste Ad Code Here -->"></textarea>
+                        </div>
+
+                        <!-- Footer Ad -->
+                        <div class="bg-white dark:bg-[#151616] rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm lg:col-span-2">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Results Footer</h3>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="ad-enable-footer" class="sr-only peer">
+                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-emerald-500"></div>
+                                </label>
+                            </div>
+                            <textarea id="ad-code-footer" rows="4" class="w-full px-3 py-2 bg-gray-50 dark:bg-[#1f2022] border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-mono focus:ring-2 focus:ring-emerald-500 outline-none transition-colors resize-none" placeholder="<!-- Paste Ad Code Here -->"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-800">
+                        <button id="save-ads-btn" class="bg-gray-900 dark:bg-white text-white dark:text-black font-bold py-2.5 px-6 rounded-xl hover:bg-black dark:hover:bg-gray-200 transition-all shadow-lg active:scale-95 flex items-center gap-2">
+                            <span>Save Ads Configuration</span>
+                        </button>
                     </div>
                 </div>
 

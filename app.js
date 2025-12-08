@@ -337,6 +337,53 @@ themeToggleBtn.addEventListener('click', () => {
 initTheme();
 initLanguage(); // Init Language
 
+// --- ADVERTISING LOGIC ---
+function initAds() {
+    const ads = window.AD_CONFIG;
+    if (!ads) return;
+
+    // Helper to safely inject scripts
+    const injectAd = (containerId, code) => {
+        const container = document.getElementById(containerId);
+        if (!container || !code) return;
+
+        // Reset
+        container.innerHTML = '';
+        container.classList.remove('hidden');
+
+        // Create a temporary container to parse HTML string
+        const temp = document.createElement('div');
+        temp.innerHTML = code;
+
+        // Iterate over child nodes and append them safely
+        Array.from(temp.childNodes).forEach(node => {
+            if (node.tagName === 'SCRIPT') {
+                const script = document.createElement('script');
+                // Copy attributes
+                Array.from(node.attributes).forEach(attr => script.setAttribute(attr.name, attr.value));
+                
+                // CRITICAL: Set nonce if available (from serve-ui injection) to allow execution under CSP
+                if (window.APP_NONCE) {
+                    script.setAttribute('nonce', window.APP_NONCE);
+                }
+
+                // Copy content
+                script.appendChild(document.createTextNode(node.innerHTML));
+                container.appendChild(script);
+            } else {
+                container.appendChild(node.cloneNode(true));
+            }
+        });
+    };
+
+    if (ads.sidebar && ads.sidebar.enabled) injectAd('ad-space-sidebar', ads.sidebar.code);
+    if (ads.header && ads.header.enabled) injectAd('ad-space-header', ads.header.code);
+    if (ads.footer && ads.footer.enabled) injectAd('ad-space-footer', ads.footer.code);
+}
+
+// Call initAds immediately
+initAds();
+
 // --- DYNAMIC BUTTON TEXT ---
 function updateGenerateButtonText() {
     const btnSpan = generateButton.querySelector('span[data-i18n]');
@@ -1293,16 +1340,18 @@ function renderHistory(bios) {
     });
 }
 
+// Search History
 historySearchInput.addEventListener('input', (e) => {
     const term = e.target.value.toLowerCase();
     const filtered = allHistoryBios.filter(b => 
-        (b.bio && b.bio.toLowerCase().includes(term)) || 
+        (b.bio && b.bio.toLowerCase().includes(term)) ||
+        (b.goals && b.goals.toLowerCase().includes(term)) || 
         (b.niche && b.niche.toLowerCase().includes(term))
     );
     renderHistory(filtered);
 });
 
-// --- PRO LOGIC ---
+// --- PRO LOGIC / PRO STATUS LISTENER ---
 function listenToProStatus() {
     onSnapshot(doc(db, `artifacts/${appId}/users/${userId}/profile/status`), (doc) => {
         const data = doc.data();
@@ -1384,7 +1433,7 @@ window.onload = () => {
     initCustomDropdowns();
 };
 
-// --- GENERATION ---
+// --- GENERATE LOGIC ---
 generateButton.onclick = async () => {
     if (!isAuthReady) { showMessage("Wait for initialization...", true); return; }
     

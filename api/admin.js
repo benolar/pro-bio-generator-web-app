@@ -48,7 +48,7 @@ export default async function handler(req, res) {
         return res.status(status).json({ error: e.message });
     }
 
-    const { action, uid, bioId, userId } = req.body; 
+    const { action, uid, bioId, userId, settings, ads } = req.body; 
     const appId = process.env.SECURE_APP_ID || 'default-app-id';
 
     try {
@@ -246,6 +246,53 @@ export default async function handler(req, res) {
             case 'deleteBio': {
                 if(!bioId || !userId) return res.status(400).json({error: "BioID and UserID required"});
                 await db.doc(`artifacts/${appId}/users/${userId}/bios/${bioId}`).delete();
+                return res.status(200).json({ success: true });
+            }
+
+            case 'getSettings': {
+                const docSnap = await db.doc(`artifacts/${appId}/config/global`).get();
+                return res.status(200).json(docSnap.exists ? docSnap.data() : {});
+            }
+
+            case 'updateSettings': {
+                if (!settings) return res.status(400).json({ error: "Settings object required" });
+                
+                const allowedKeys = ['title', 'metaDescription', 'faviconUrl'];
+                const cleanSettings = {};
+                
+                allowedKeys.forEach(key => {
+                    if (settings[key] !== undefined) cleanSettings[key] = settings[key];
+                });
+
+                cleanSettings.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+                
+                await db.doc(`artifacts/${appId}/config/global`).set(cleanSettings, { merge: true });
+                return res.status(200).json({ success: true });
+            }
+
+            case 'getAdSettings': {
+                const docSnap = await db.doc(`artifacts/${appId}/config/ads`).get();
+                return res.status(200).json(docSnap.exists ? docSnap.data() : {});
+            }
+
+            case 'updateAdSettings': {
+                if (!ads) return res.status(400).json({ error: "Ads object required" });
+                
+                // Allow only specific keys
+                const allowed = ['sidebar', 'header', 'footer'];
+                const cleanAds = {};
+                
+                allowed.forEach(zone => {
+                    if (ads[zone]) {
+                        cleanAds[zone] = {
+                            enabled: ads[zone].enabled === true,
+                            code: ads[zone].code || ''
+                        };
+                    }
+                });
+
+                cleanAds.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+                await db.doc(`artifacts/${appId}/config/ads`).set(cleanAds, { merge: true });
                 return res.status(200).json({ success: true });
             }
 

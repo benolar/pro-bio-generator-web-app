@@ -14,6 +14,7 @@ export default async function handler(req, res) {
     let contentType = 'text/plain';
     if (type === 'js' || file.endsWith('.js')) contentType = 'application/javascript';
     else if (type === 'css' || file.endsWith('.css')) contentType = 'text/css';
+    else if (type === 'svg' || file.endsWith('.svg')) contentType = 'image/svg+xml';
     else if (type === 'ico' || file.endsWith('.ico')) contentType = 'image/x-icon';
 
     // Resolve path: Vercel functions run in root, so we look into 'public'

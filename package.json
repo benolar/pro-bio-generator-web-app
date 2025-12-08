@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "build": "mkdir -p public && cp ./*.html ./public/ && cp app.js ./public/app.9d4e1a.js && cp admin.js ./public/admin.9d4e1a.js && cp favicon.ico ./public/favicon.9d4e1a.ico && tailwindcss -i ./input.css -o ./public/output.9d4e1a.css"
+    "build": "mkdir -p public && cp ./*.html ./public/ && cp app.js ./public/app.9d4e1a.js && cp admin.js ./public/admin.9d4e1a.js && cp favicon.svg ./public/favicon.9d4e1a.svg && tailwindcss -i ./input.css -o ./public/output.9d4e1a.css"
   },
   "dependencies": {
     "@google/genai": "^1.27.0",

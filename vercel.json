@@ -24,7 +24,7 @@
   "rewrites": [
     { "source": "/(.*).9d4e1a.css", "destination": "/api/serve-assets?file=$1.9d4e1a.css&type=css" },
     { "source": "/(.*).9d4e1a.js", "destination": "/api/serve-assets?file=$1.9d4e1a.js&type=js" },
-    { "source": "/favicon.9d4e1a.ico", "destination": "/api/serve-assets?file=favicon.9d4e1a.ico&type=ico" },
+    { "source": "/favicon.9d4e1a.svg", "destination": "/api/serve-assets?file=favicon.9d4e1a.svg&type=svg" },
     { "source": "/admin", "destination": "/api/serve-ui?page=admin" },
     { "source": "/admin.html", "destination": "/api/serve-ui?page=admin" },
     { "source": "/", "destination": "/api/serve-ui?page=index" },

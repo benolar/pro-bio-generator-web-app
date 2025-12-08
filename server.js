@@ -124,7 +124,9 @@ app.get('/admin.html', (req, res) => serveWithNonce(res, path.join(__dirname, 'a
 // Local Dev Rewrites for Hashed Files (so dev works without running full build)
 app.get('/app.9d4e1a.js', (req, res) => res.sendFile(path.join(__dirname, 'app.js')));
 app.get('/admin.9d4e1a.js', (req, res) => res.sendFile(path.join(__dirname, 'admin.js')));
-app.get('/favicon.9d4e1a.ico', (req, res) => res.sendFile(path.join(__dirname, 'favicon.ico')));
+// Serve the SVG favicon as the hashed version
+app.get('/favicon.9d4e1a.svg', (req, res) => res.sendFile(path.join(__dirname, 'favicon.svg')));
+
 app.get('/output.9d4e1a.css', (req, res) => {
     // Check for build output first, then try root (if user manually generated), then fallback to unhashed path
     if (fs.existsSync(path.join(__dirname, 'public/output.9d4e1a.css'))) {
