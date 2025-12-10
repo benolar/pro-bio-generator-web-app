@@ -75,7 +75,7 @@ export default async function handler(req, res) {
                 
                 const listUsersPromise = admin.auth().listUsers(1000);
                 
-                const proCountPromise = db.documentGroup('profile/status').where('isPro', '==', true).count().get();
+                const proCountPromise = db.collectionGroup('profile/status').where('isPro', '==', true).count().get();
                 const bioCountPromise = db.collectionGroup('bios').count().get();
 
                 // Execute in parallel with safety wrappers
